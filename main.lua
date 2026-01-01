@@ -830,7 +830,7 @@ local function drawWorld()
                 love.graphics.draw(el.icon, rightX, rowY - 2)
                 
                 Utils.setColor(9)
-                love.graphics.printf(math.floor(data.dano_total), rightX, rowY, colWidth, "right")
+                love.graphics.printf(data.dano_total, rightX, rowY, colWidth, "right")
             end
         end
 
@@ -956,7 +956,7 @@ local function drawWorld()
                 love.graphics.draw(el.icon, rightX, rowY - 2)
                 
                 Utils.setColor(13)
-                love.graphics.printf(math.floor(data.dano_total), rightX, rowY, colWidth, "right")
+                love.graphics.printf(data.dano_total, rightX, rowY, colWidth, "right")
             end
         end
 
