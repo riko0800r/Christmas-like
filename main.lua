@@ -1053,8 +1053,7 @@ function love.keypressed(key)
         Characters.keypressed(key)
     elseif GameState.current == "play" then
         if key == "r" then
-            _G.performSwitch("menu")
-            resetGame()
+            _G.performSwitch("over")
         end
     end
 

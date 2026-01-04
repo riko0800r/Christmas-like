@@ -194,16 +194,15 @@ function Player.new()
     function self:recordElementalDamage(element_type, amount)
         if self.stats_elemental[element_type] then
             amount = tonumber(amount) or 0
-            self.stats_elemental[element_type].dano_total = 
-                (self.stats_elemental[element_type].dano_total or 0) + amount
+            self.stats_elemental[element_type].dano_total = (self.stats_elemental[element_type].dano_total or 0) + amount
+            self.stats.total_damage=(self.stats.total_damage or 0) + amount
         end
     end
     
     -- Helper para registrar aplicação de efeito
     function self:recordElementalApplication(element_type)
         if self.stats_elemental[element_type] then
-            self.stats_elemental[element_type].aplicacoes = 
-                (self.stats_elemental[element_type].aplicacoes or 0) + 1
+            self.stats_elemental[element_type].aplicacoes = (self.stats_elemental[element_type].aplicacoes or 0) + 1
         end
     end
     return self
