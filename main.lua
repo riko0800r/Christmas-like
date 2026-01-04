@@ -29,6 +29,7 @@ spawn_timer = 0
 intro_timer = 120
 game_mode = 0
 player = nil
+is_paused = false
 
 Menu_Musica = love.audio.newSource("assets/Menu divertido.mp3","stream")
 Luta_Musica = love.audio.newSource("assets/Lutando no natal.mp3","stream")
@@ -560,6 +561,9 @@ function love.load()
 end
 
 function love.update(dt)
+    if GameState.current == "play" and is_paused then
+        return
+    end
     updateBackgrounds(dt)
     Camera:update(dt)
     Part.update(dt)
@@ -728,6 +732,35 @@ local function drawWorld()
         Utils.setColor(8)
         love.graphics.rectangle("fill", x, y, bar_w * ratio, bar_h)
         Camera:clear()
+
+        -- 2. BLOCO DO PAUSE (Coloque isso logo antes de fechar o state "play")
+        if is_paused then
+            -- Pega largura e altura virtual do jogo
+            local gw, gh = Push:getDimensions()
+
+            -- Desenha retângulo preto com 50% de opacidade (0.5 no alpha)
+            love.graphics.setColor(0, 0, 0, 0.5)
+            love.graphics.rectangle("fill", 0, 0, gw, gh)
+
+            -- Desenha o texto de PAUSE
+            local texto = Lang.text("pause_title")
+            local font = love.graphics.getFont()
+            local textW = font:getWidth(texto)
+            local textH = font:getHeight()
+
+            -- Cor branca vibrante (usando seu Utils ou love.graphics direto)
+            -- Se usar seu Utils.setColor(7) funciona, ou manual:
+            love.graphics.setColor(1, 1, 1, 1) 
+            
+            -- Centraliza na tela
+            love.graphics.print(texto, (gw - textW) / 2, (gh - textH) / 2)
+            
+            -- Texto menor embaixo
+            love.graphics.setColor(1, 1, 1, 0.7)
+            local sub = Lang.text("pause_sub")
+            local subW = font:getWidth(sub)
+            love.graphics.print(sub, (gw - subW) / 2, (gh - textH) / 2 + 20)
+        end
     elseif GameState.current == "rewards" then
         Rewards.draw()
     elseif GameState.current == "victory" then
@@ -1022,6 +1055,14 @@ function love.keypressed(key)
         if key == "r" then
             _G.performSwitch("menu")
             resetGame()
+        end
+    end
+
+    if key == "escape" then
+        -- Se estiver no jogo (play)
+        if GameState.current == "play" then
+            is_paused = not is_paused -- Inverte: se tava false vira true, se tava true vira false
+            return -- Retorna para não executar "menu_back" ou sair do jogo acidentalmente
         end
     end
 end

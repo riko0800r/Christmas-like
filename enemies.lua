@@ -46,23 +46,23 @@ local EnemyPresets = {
     arma = {demage_preset=1,speed_base = 0.25, speed_scale = 1/16, hp_base = 2, hp_scale = 1/8,demage_scale=1/400, shoot_timer = 0, time = 0,sprite=1},
     circulador = {demage_preset=1,speed_base = 1, speed_scale = 1/16, hp_base = 4, hp_scale = 1/8,demage_scale=1/400, shoot_timer = 0, num_bullets = 10, orbit_radius = 12, orbit_speed = 1,sprite=1},
     
-    boss = {demage_preset=1,speed_base = 0.95, speed_scale = 1/16, hp_base = 25, hp_scale = 1/8,demage_scale=1/400 ,explosion_radius = 9, time = 0, summon_timer = 0,sprite=2},
+    boss = {demage_preset=1,speed_base = 0.95, speed_scale = 1/16, hp_base = 25, hp_scale = 1/3,demage_scale=1/400 ,explosion_radius = 9, time = 0, summon_timer = 0,sprite=2},
     
     boss2 = {
-      demage_preset=1,speed_base = 1.5, speed_scale = 1/16, hp_base = 25, hp_scale = 1/8,demage_scale=1/400,dirx = 1, time = 0, summon_timer = 0,sprite=3},
+      demage_preset=1,speed_base = 1.5, speed_scale = 1/16, hp_base = 25, hp_scale = 1/3,demage_scale=1/400,dirx = 1, time = 0, summon_timer = 0,sprite=3},
     
     boss3 = {
-      demage_preset=1,speed_base = 2.5, speed_scale = 1/16, hp_base = 25, hp_scale = 1/8,demage_scale=1/400, dir = 1, timer = 0,sprite=4},
+      demage_preset=1,speed_base = 2.5, speed_scale = 1/16, hp_base = 25, hp_scale = 1/3,demage_scale=1/400, dir = 1, timer = 0,sprite=4},
 
     boss4 = {
-      demage_preset=1,speed_base = 0.25, speed_scale = 1/16, hp_base = 25, hp_scale = 1/8,demage_scale=1/400,time = 0, summon_timer = 0,sprite=6,
+      demage_preset=1,speed_base = 0.25, speed_scale = 1/16, hp_base = 25, hp_scale = 1/3,demage_scale=1/400,time = 0, summon_timer = 0,sprite=6,
       teleport_cooldown = 145, teleport_timer = 0, bullet_speed = 1.75,
       is_teleporting = false, target_x = 0, target_y = 0},
       
-    boss5 = {demage_preset=1,speed_base = 1, speed_scale = 1/16, hp_base = 35, hp_scale = 1/8,demage_scale=1/400, shoot_timer = 0, num_bullets = 24, orbit_radius = 32, orbit_speed = 1,sprite=6},
+    boss5 = {demage_preset=1,speed_base = 1, speed_scale = 1/16, hp_base = 35, hp_scale = 1/3,demage_scale=1/400, shoot_timer = 0, num_bullets = 24, orbit_radius = 32, orbit_speed = 1,sprite=6},
 
     teleportador = {
-        demage_preset=2, speed_base = 0, speed_scale = 0, hp_base = 3.5, hp_scale = 1/12, demage_scale=1/500, 
+        demage_preset=2, speed_base = 0, speed_scale = 0, hp_base = 3.5, hp_scale = 1/16, demage_scale=1/500, 
         teleport_cooldown = 180, teleport_timer = 0, bullet_speed = 1.75, sprite=1,
         warning_timer = 0,
         is_teleporting = false,

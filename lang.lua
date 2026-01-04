@@ -166,6 +166,9 @@ local db = {
         ["synergy_tox_name"] = "Combo tóxico",
         ["synergy_tox_desc"] = "Área de dano em volta dos inimigos!",
         ["synergy_tox_stat"] = "Raio de dano tóxico",
+        
+        ["pause_title"]="PAUSADO",
+        ["pause_sub"]  ="Aperte ESC para voltar",
     },
     ["en"] = {
         -- MENU
@@ -328,6 +331,9 @@ local db = {
         ["synergy_tox_name"] = "Toxic Combo",
         ["synergy_tox_desc"] = "Damage area around enemies!",
         ["synergy_tox_stat"] = "Toxic damage radius",
+
+        ["pause_title"]="PAUSED",
+        ["pause_sub"]  ="Press Esc to unpause the game.",
     }
 }
 
