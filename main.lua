@@ -829,6 +829,7 @@ local function drawWorld()
                 elseif it.name == "Bumerangue" then icon = Icon_Bumerang
                 elseif it.name == "Guirlanda" then icon = Icon_Guirlanda
                 elseif it.name == "presente dourado" then icon = Rewards.get_icon_by_name("Anel de Lava")
+                elseif it.name == "Pedras preciosas" then icon = Rewards.get_icon_by_name("Pedras Preciosas")
                 end
             end
 
@@ -842,7 +843,7 @@ local function drawWorld()
             end
             
             Utils.setColor(9) -- Laranja/Amarelo para números de vitória
-            love.graphics.printf(math.floor(it.dmg), leftX, rowY, colWidth, "right")
+            love.graphics.printf(math.ceil(it.dmg), leftX, rowY, colWidth, "right")
         end
 
         -- COLUNA DIREITA: ELEMENTOS
@@ -867,7 +868,7 @@ local function drawWorld()
                 love.graphics.draw(el.icon, rightX, rowY - 2)
                 
                 Utils.setColor(9)
-                love.graphics.printf(data.dano_total, rightX, rowY, colWidth, "right")
+                love.graphics.printf(math.ceil(data.dano_total), rightX, rowY, colWidth, "right")
             end
         end
 
@@ -955,6 +956,7 @@ local function drawWorld()
                 elseif it.name == "Bumerangue" then icon = Icon_Bumerang
                 elseif it.name == "Guirlanda" then icon = Icon_Guirlanda
                 elseif it.name == "presente dourado" then icon = Rewards.get_icon_by_name("Anel de Lava")
+                elseif it.name == "Pedras preciosas" then icon = Rewards.get_icon_by_name("Pedras Preciosas")
                 end
             end
 
@@ -968,7 +970,7 @@ local function drawWorld()
             end
             
             Utils.setColor(13)
-            love.graphics.printf(math.floor(it.dmg), leftX, rowY, colWidth, "right")
+            love.graphics.printf(math.ceil(it.dmg), leftX, rowY, colWidth, "right")
         end
 
         -- --- COLUNA DIREITA: ELEMENTOS (USANDO ÍCONES) ---
@@ -978,7 +980,7 @@ local function drawWorld()
         local elemental = (player and player.stats_elemental) or {}
         local elements = {
             {id = "fogo", icon = Icon_Fogo, label = "Fogo"},
-            {id = "gelo", icon = Icon_Gelo, label = "Gelo"},
+            {id = "gelo", icon = Rewards.get_icon_by_name("Imobilizador"), label = "Gelo"},
             {id = "veneno", icon = Icon_Veneno, label = "Veneno"}
         }
 
@@ -993,7 +995,7 @@ local function drawWorld()
                 love.graphics.draw(el.icon, rightX, rowY - 2)
                 
                 Utils.setColor(13)
-                love.graphics.printf(data.dano_total, rightX, rowY, colWidth, "right")
+                love.graphics.printf(math.ceil(data.dano_total), rightX, rowY, colWidth, "right")
             end
         end
 

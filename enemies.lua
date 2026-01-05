@@ -107,7 +107,8 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         veneno = false, fogo = false, gelo = false,
         dead = false,
         waves_manager = Waves,
-        flpx=1
+        flpx=1,
+        tempo_pausado=0,
     }
 
     for k, v in pairs(preset) do
@@ -461,8 +462,12 @@ local update_functions = {
 function enemies_module.update_enemy(enemy, player, dt)
     enemy.speed = clamp(0.95, enemy.speed, MAX_ENEMY_SPEED)
     local update_fn = update_functions[enemy.tipo]
-    if update_fn then
-        update_fn(enemy, player, dt)
+    if enemy.tempo_pausado<=0 then
+        if update_fn then
+            update_fn(enemy, player, dt)
+        end
+    else
+        enemy.tempo_pausado=clamp(0, enemy.tempo_pausado-1/60,1)
     end
     
     local game_timer = _G.game_timer or 0
@@ -487,6 +492,7 @@ function enemies_module.update_enemy(enemy, player, dt)
         player:recordElementalDamage("gelo", dmg)
         player:recordElementalApplication("gelo")
         e.speed = math.max(0.25, e.speed - 0.25)
+        e.tempo_pausado=0.75
         addpart(e.x, e.y, 8, 1)
     end
     
