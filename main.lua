@@ -622,15 +622,19 @@ function love.update(dt)
                 _G.switchState("final")
                 Musica_Atual:stop()
             else
-                Musica_Atual:stop()
-                if GameConfig.musica_antiga==false then
-                    Musica_Atual = Shop_Musica
-                else
-                    Musica_Atual = Musica_Shop_Antiga
+                if Musica_Atual then
+                    local pos = Musica_Atual:tell()
+                    Musica_Atual:stop()
+                    -- Lógica simples: se estava tocando luta, toca a versão de luta escolhida
+                    if GameConfig.musica_antiga == false then
+                        Musica_Atual = Shop_Musica
+                    else
+                        Musica_Atual = Musica_Shop_Antiga
+                    end
+                    Musica_Atual:play()
+                    Musica_Atual:seek(pos) -- Tenta manter a sincronia
+                    Musica_Atual:setLooping(true)
                 end
-                Musica_Atual:play()
-                Musica_Atual:setVolume(0.25)
-                Musica_Atual:setLooping(true)
                 _G.switchState("rewards")
             end
         end
@@ -1052,7 +1056,7 @@ function love.keypressed(key)
     elseif GameState.current == "characters" then
         Characters.keypressed(key)
     elseif GameState.current == "play" then
-        if key == "r" then
+        if key == "r" and is_paused==false then
             _G.performSwitch("over")
         end
     end
@@ -1075,8 +1079,8 @@ function love.gamepadpressed(joystick, button)
     if button == 'dpup' then love.keypressed('up')
     elseif button == 'dpdown' then love.keypressed('down')
     elseif button == 'a' then love.keypressed('return') end
-    if button=="back" or button=="start" then
-        _G.switchState("intro")
+    if (button=="back" or button=="start") and is_paused==false then
+        _G.switchState("over")
         if Musica_Atual then
             local pos = Musica_Atual:tell()
             Musica_Atual:stop()
