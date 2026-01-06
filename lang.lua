@@ -98,6 +98,9 @@ local db = {
         ["char_tree_desc"]="Começa com guirlanda de espinhos\nAura circular de dano ao redor de você.",
         ["char_gift2"]="Presente ruim",
         ["char_gift2_desc"]="Começa com um bumerang natalino\nVai e volta deixando presentes na volta",
+        
+        ["char_atirador"]="Rena atiradora",
+        ["char_atirador_desc"]="Começa com uma bola de neve\nbola de neve: tiro que segue inimigos",
         -- ITENS / RECOMPENSAS
         ["reward_choose"] = "Escolha sua recompensa:",
         ["item_life"] = "Vida",
@@ -252,21 +255,24 @@ local db = {
         ["char_fire"] = "Fire Reindeer",
         ["char_fire_desc"] = "starts with dangerous fire\nfire: burn damage over time",
         ["char_ice"] = "Ice Reindeer",
-        ["char_ice_desc"] = "starts with immobilizer\nslows enemies down.",
+        ["char_ice_desc"] = "Starts with immobilizer\nslows enemies down.",
         ["char_rock"] = "Rock Reindeer",
-        ["char_rock_desc"] = "starts with Heaven Rocks\nrocks fall (3X dmg), bad aim.",
+        ["char_rock_desc"] = "Starts with Heaven Rocks\nrocks fall (3X dmg), bad aim.",
         ["char_lava"] = "Golden Reindeer",
-        ["char_lava_desc"] = "starts with Golden gitfs\nRing protects and attacks enemies.",
+        ["char_lava_desc"] = "Starts with Golden gitfs\nRing protects and attacks enemies.",
         ["char_gift"] = "Precious Gift",
-        ["char_gift_desc"] = "starts with Precious Gems\nThrows gems upwards (half dmg)",
+        ["char_gift_desc"] = "Starts with Precious Gems\nThrows gems upwards (half dmg)",
         ["char_mystery"] = "Mystery Reindeer",
-        ["char_mystery_desc"] = "starts with 2 random items\nunpredictable combinations!",
+        ["char_mystery_desc"] = "Starts with 2 random items\nunpredictable combinations!",
         
         ["char_tree"]="Christmas Tree",
-        ["char_tree_desc"]="Starts with Spiked Wreath\nCircular aura of damage around the player..",
+        ["char_tree_desc"]="Starts with Spiked Wreath\nCircular aura of damage around the player.",
 
         ["char_gift2"]="Bad Gift",
         ["char_gift2_desc"]="Starts with Christmas Boomerang\nHe goes and comes back to you, leaving gifts on his return.",
+
+        ["char_atirador"]="Sniper Reindeer",
+        ["char_atirador_desc"]="Starts with a snowball\nSnowball: a shot that follows enemies.",
 
         -- ITENS / RECOMPENSAS
         ["reward_choose"] = "Choose your reward:",

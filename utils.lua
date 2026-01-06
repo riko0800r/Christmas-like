@@ -42,11 +42,22 @@ end
 
 -- Verificação de colisão para caixas de 8x8 (tamanho padrão de sprite PICO-8)
 function Utils.col(a, b)
-    local size = 8 -- Tamanho do sprite
-    return a.x < b.x + size and
-           b.x < a.x + size and
-           a.y < b.y + size and
-           b.y < a.y + size
+    -- Pega as posições e tamanhos ajustados (ou usa o padrão se não tiver ajuste)
+    local aX = a.x + (a.hitbox_off_x or 0)
+    local aY = a.y + (a.hitbox_off_y or 0)
+    local aW = a.hitbox_w or a.w or 0
+    local aH = a.hitbox_h or a.h or 0
+
+    local bX = b.x + (b.hitbox_off_x or 0)
+    local bY = b.y + (b.hitbox_off_y or 0)
+    local bW = b.hitbox_w or b.w or 0
+    local bH = b.hitbox_h or b.h or 0
+
+    -- Lógica padrão de colisão AABB
+    return aX < bX + bW and
+           bX < aX + aW and
+           aY < bY + bH and
+           bY < aY + aH
 end
 
 function Utils.safeText(str)

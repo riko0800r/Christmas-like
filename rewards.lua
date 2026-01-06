@@ -185,7 +185,7 @@ local base_items = {
         get_name = function() return Lang.text("item_frz") end,
         effect = function(p) 
             p.gelo = true
-            if p.gelo_delay > 0.5 then p.gelo_delay = p.gelo_delay - 0.04 end
+            if p.gelo_delay > 1 then p.gelo_delay = p.gelo_delay - 0.1 end
             p.gelo_dano = p.gelo_dano + 0.1
             p.gelo_slow = math.min(0.9, (p.gelo_slow or 0.5) + 0.05)
         end, 

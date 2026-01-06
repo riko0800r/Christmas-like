@@ -111,6 +111,17 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         tempo_pausado=0,
     }
 
+    enemy.w = enemy.w or 16 -- Se não tiver largura definida, assume 16
+    enemy.h = enemy.h or 16
+
+    -- Define hitbox menor (ex: 70% do tamanho visual)
+    enemy.hitbox_w = math.floor(enemy.w * 0.7)
+    enemy.hitbox_h = math.floor(enemy.h * 0.7)
+
+    -- Calcula o offset para centralizar
+    enemy.hitbox_off_x = (enemy.w - enemy.hitbox_w) / 2
+    enemy.hitbox_off_y = (enemy.h - enemy.hitbox_h) / 2
+
     for k, v in pairs(preset) do
         enemy[k] = v
     end
@@ -491,8 +502,8 @@ function enemies_module.update_enemy(enemy, player, dt)
         e.takeDamage(e, dmg)
         player:recordElementalDamage("gelo", dmg)
         player:recordElementalApplication("gelo")
-        e.speed = math.max(0.25, e.speed - 0.25)
-        e.tempo_pausado=0.75
+        e.speed = math.max(0.15, e.speed - 0.25)
+        e.tempo_pausado=0.65
         addpart(e.x, e.y, 8, 1)
     end
     
@@ -596,6 +607,14 @@ local function draw_enemy(enemy)
             presente:getHeight()/2
         )
         Shaders:clear()
+    end
+
+    if Debug.options.show_enemy_rect then
+        love.graphics.setColor(1, 0, 0, 1) -- Vermelho para inimigos
+        -- Ajuste w e h conforme a lógica de colisão do seu inimigo
+        local w = enemy.w or 16
+        local h = enemy.h or 16
+        love.graphics.rectangle("line", enemy.x-(4*enemy.flpx), enemy.y-4, w*enemy.flpx, h)
     end
 end
 

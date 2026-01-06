@@ -49,7 +49,7 @@ function Player.new()
     self.pedras = {}
     self.rodas = {}
     self.bala_speed = 3
-    self.tiro_max_time = 1
+    self.tiro_max_time = 1.4
     self.pedra_max_time = 3.25
     self.roda_max_time = 5
     self.demage = 1
@@ -63,7 +63,7 @@ function Player.new()
     self.fogo_dano = 0
     self.fogo_delay = 0.5
     self.gelo_dano = 0
-    self.gelo_delay = 0.5
+    self.gelo_delay = 3
     self.gelo_slow  = 0.25
     self.vidas_por_rodada = 0
     self.width  = 16
@@ -205,6 +205,12 @@ function Player.new()
             self.stats_elemental[element_type].aplicacoes = (self.stats_elemental[element_type].aplicacoes or 0) + 1
         end
     end
+
+    self.hitbox_w = 6
+    self.hitbox_h = 6
+    self.hitbox_off_x = 5 
+    self.hitbox_off_y = 5
+
     return self
 end
 
@@ -222,7 +228,6 @@ function Player:update(dt, enemies, time)
             self.t = 0
         end
     end
-
 
     local current_speed = self.speed
 
@@ -251,7 +256,7 @@ function Player:update(dt, enemies, time)
     self.y = self.y + move_y * dt * 60
 
     self.x = math.max(0, math.min(self.x, 128*4 - 16))
-    self.y = math.max(8, math.min(self.y, 128*2 - 8))
+    self.y = math.max(0, math.min(self.y, 128*2 - 16))
 
     -- Atualiza itens base
     if self.tiro then self:checkTiroSpawn(dt) end
@@ -374,7 +379,11 @@ function Player:spawnBumerangue()
         dist_traveled = 0,
         gifts = {}, -- Presentes que ele solta
         gift_timer = 0,
-        rot = 0
+        rot = 0,
+        hitbox_w = 12,
+        hitbox_h = 12,
+        hitbox_off_x = 6,
+        hitbox_off_y = 6
     })
 end
 
@@ -616,7 +625,11 @@ function Player:checkTiroSpawn(dt)
     if self.tiro_time >= self.tiro_max_time then
         table.insert(self.bullets, {
             x = self.x + self.width / 2, y = self.y + self.height / 2, 
-            speed = self.bala_speed, tipo = "normal", width = 4, height = 4
+            speed = self.bala_speed, tipo = "normal", width = 4, height = 4,
+            hitbox_w = 4,
+            hitbox_h = 4,
+            hitbox_off_x = 2, -- (16 - 10) / 2
+            hitbox_off_y = 2
         })
         self.tiro_time = 0
     end
@@ -684,7 +697,11 @@ function Player:spawnRodas(num, speed)
             dx = math.cos(angle) * speed,
             dy = math.sin(angle) * speed,
             life_timer = 3.5,
-            width = 8, height = 8
+            width = 8, height = 8,
+            hitbox_w = 8,
+            hitbox_h = 8,
+            hitbox_off_x = 4, -- (16 - 10) / 2
+            hitbox_off_y = 4
         })
     end
 end
@@ -697,15 +714,35 @@ function Player:checkSombrioSpawn(dt)
             local speed = love.math.random(45, 135)
             local dx = math.cos(angle) * speed
             local dy = math.sin(angle) * speed
-            table.insert(self.sombrios, {
-                x = self.x + self.width / 2,
-                y = self.y,
-                dx = dx,
-                dy = dy,
-                life_timer = love.math.random(8,12),
-                width = 8,
-                height = 8,
-            })
+            if i%2==0 then
+                table.insert(self.sombrios, {
+                    x = self.x + self.width / 2,
+                    y = self.y,
+                    dx = dx,
+                    dy = dy,
+                    life_timer = love.math.random(8,12),
+                    width = 8,
+                    height = 8,
+                    hitbox_w = 8,
+                    hitbox_h = 8,
+                    hitbox_off_x = 4, -- (16 - 10) / 2
+                    hitbox_off_y = 4
+                })
+            else
+                table.insert(self.sombrios, {
+                    x = self.x + self.width / 2,
+                    y = self.y,
+                    dx = dx,
+                    dy = -dy,
+                    life_timer = love.math.random(8,12),
+                    width = 8,
+                    height = 8,
+                    hitbox_w = 8,
+                    hitbox_h = 8,
+                    hitbox_off_x = 4, -- (16 - 10) / 2
+                    hitbox_off_y = 4
+                }) 
+            end
         end
         self.sombrio_time = 0
     end
@@ -1036,7 +1073,7 @@ function Player:draw()
         -- Desenha o bumerangue (um 'V' simples girando)
         love.graphics.setColor(1, 1, 0) -- Amarelo
         love.graphics.push()
-        love.graphics.translate(b.x, b.y)
+        love.graphics.translate(b.x+4, b.y+4)
         love.graphics.rotate(b.rot)
         love.graphics.rectangle("fill", -8, -2, 10, 4)
         love.graphics.rectangle("fill", -2, -8, 4, 10)
@@ -1055,9 +1092,53 @@ function Player:draw()
         Utils.setColor(7)
         local scaleX = self.flp*2
         local offsetX = self.flp and 8 or 0 
-        love.graphics.draw(self.sprite_sheet, self.sprite[self.tipo_jogador], self.x + offsetX, self.y,0, scaleX, 2, 4, 4)
+        love.graphics.draw(self.sprite_sheet, self.sprite[self.tipo_jogador], self.x + offsetX, self.y,0, scaleX, 2, 4)
     end
 
+    if Debug.options.show_player_rect then
+        love.graphics.setColor(0, 1, 0, 1) -- Verde para o player
+        -- Supondo que a hitbox seja um retângulo centrado ou baseado na sprite
+        -- Ajuste os valores (8, 8, 16, 16) conforme o tamanho real do colisor do seu player
+        love.graphics.rectangle("line", self.x, self.y, 16, 16) 
+        love.graphics.print("P", self.x, self.y - 16)
+    end
+
+    if Debug and Debug.active and Debug.options.show_item_rect then
+        love.graphics.setColor(0, 0, 0, 1) -- Azul claro (Cyan) para ataques do player
+        
+        -- 1. Bolas de Neve
+        if self.tiro then
+            for _, p in ipairs(self.bullets) do
+                love.graphics.rectangle("line", 
+                    p.x + (p.hitbox_off_x or 0), 
+                    p.y + (p.hitbox_off_y or 0), 
+                    p.hitbox_w or p.w or 4, 
+                    p.hitbox_h or p.h or 4
+                )
+            end
+        end
+
+        -- 2. Bumerangues
+        if self.bumerangue then
+            for _, b in ipairs(self.bumerangues) do
+                -- Bumerangues as vezes tem posição calculada na hora, certifique-se de pegar o X/Y real
+                love.graphics.rectangle("line", 
+                    b.x + (b.hitbox_off_x or 0), 
+                    b.y + (b.hitbox_off_y or 0), 
+                    b.hitbox_w or b.w or 16, 
+                    b.hitbox_h or b.h or 16
+                )
+            end
+        end
+
+        -- 3. Guirlanda (Área circular)
+        if self.guirlanda then
+            love.graphics.circle("line", self.x + 8, self.y + 8, self.guirlanda_raio)
+        end
+        
+        -- Reset de cor
+        love.graphics.setColor(1, 1, 1, 1)
+    end
 end
 
 return Player

@@ -394,6 +394,25 @@ Characters.list = {
             p.sp = {64,64}
         end
     },
+    {
+        id = "Atirador",
+        get_name = function() return Lang.text("char_atirador") end,
+        get_desc = function() 
+            local d = Lang.text("char_atirador_desc")
+            local lines = {}
+            for s in d:gmatch("[^\n]+") do table.insert(lines, s) end
+            return lines
+        end,
+        sprite_id = 64,
+        apply = function(p)
+            p.tipo_jogador = 12
+            p.demage = 1.75
+            p.tiro_max_time=1.25
+            p.speed = 2.25
+            p.tiro=true
+            p.sp = {64,64}
+        end
+    },
 }
 
 function Characters.load(player)
@@ -401,7 +420,7 @@ function Characters.load(player)
     player.sprite_sheet=love.graphics.newImage("assets/spritePersonagens.png")
     Characters.image={}
     player.sprite={}
-    for i=0,10 do
+    for i=0,11 do
         Characters.image[i+1]=love.graphics.newQuad(i*8, 0, 8, 8, Characters.sprite_sheet:getDimensions())
         player.sprite[i+1]=love.graphics.newQuad(i*8, 0, 8, 8, player.sprite_sheet:getDimensions())
     end

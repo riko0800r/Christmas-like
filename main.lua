@@ -39,7 +39,6 @@ Musica_Shop_Antiga = love.audio.newSource("assets/antigo/musica_1_OST.wav","stre
 Musica_Menu_Antiga = love.audio.newSource("assets/antigo/musica_2_OST.wav","stream")
 Musica_Luta_Antiga = love.audio.newSource("assets/antigo/musica_3_OST.wav","stream")
 
-
 SFX_Morte=love.audio.newSource("assets/morte.wav","static")
 SFX_select=love.audio.newSource("assets/menu.wav","static")
 
@@ -83,6 +82,36 @@ GameConfig = {
     fullscreen   = false,
     musica_antiga= false,
 }
+
+Debug = {
+    active = false,          -- Se o menu debug está aberto
+    show_menu = false,       -- Se deve desenhar o painel
+    current_tab = "hitbox",  -- Aba atual: 'info' ou 'hitbox'
+    
+    -- Opções (Flags)
+    options = {
+        show_player_rect = false,
+        show_enemy_rect = false,
+        show_item_rect = false,
+        infinite_hp = false
+    }
+}
+
+local codigo_debug = { "up", "up", "down", "down", "left", "right", "left", "right", "b", "a" }
+local key_buffer = {}
+
+local function draw_checkbox(text, value, x, y)
+    local w, h = 12, 12
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("line", x, y, w, h)
+    if value then
+        love.graphics.setColor(0, 1, 0, 1)
+        love.graphics.rectangle("fill", x + 2, y + 2, w - 4, h - 4)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.print(text, x + 18, y - 2)
+    return x, y, 200, 16 -- Retorna a área clicável (x, y, w, h)
+end
 
 -- Adicione "menu_options" na lista de estados de menu
 -- main.lua
@@ -1021,6 +1050,47 @@ local function drawWorld()
         Utils.centerText(Lang.text("menu_options"), 20)
         Buttons:drawAll()
     end
+
+    -- DESENHO DO MENU DEBUG
+    if is_paused and Debug.show_menu then
+        local gw, gh = Push:getDimensions()
+        
+        -- Fundo do painel
+        love.graphics.setColor(0.1, 0.1, 0.1, 0.95)
+        love.graphics.rectangle("fill", 20, 20, gw - 40, gh - 40)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", 20, 20, gw - 40, gh - 40)
+        
+        -- Título
+        Utils.centerText("--- DEBUG MODE ---", 25)
+        
+        -- Abas (Simples botões de texto)
+        if Debug.current_tab == "info" then love.graphics.setColor(0,1,0) else love.graphics.setColor(0.5,0.5,0.5) end
+        love.graphics.print("[ INFO ]", 30, 45)
+        
+        if Debug.current_tab == "hitbox" then love.graphics.setColor(0,1,0) else love.graphics.setColor(0.5,0.5,0.5) end
+        love.graphics.print("[ HITBOXES ]", 100, 45)
+        
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.line(20, 60, gw-20, 60)
+
+        -- Conteúdo das Abas
+        if Debug.current_tab == "info" then
+            -- Mostra Seed e Status
+            love.graphics.print("Seed: " .. (Seed and Seed.current or "N/A"), 30, 70)
+            if player then
+                love.graphics.print(string.format("Player HP: %d/%d", player.lifes, player.max_life), 30, 85)
+                love.graphics.print(string.format("Pos: %.1f, %.1f", player.x, player.y), 30, 100)
+            end
+            
+        elseif Debug.current_tab == "hitbox" then
+            -- Opções de Hitbox
+            draw_checkbox("Hitbox Jogador", Debug.options.show_player_rect, 30, 70)
+            draw_checkbox("Hitbox Inimigos", Debug.options.show_enemy_rect, 30, 90)
+            draw_checkbox("Hitbox Itens", Debug.options.show_item_rect, 30, 110)
+        end
+    end
+
     drawTouchControls()
     Transitions.draw()
     Part.draw()
@@ -1060,6 +1130,35 @@ function love.keypressed(key)
     elseif GameState.current == "play" then
         if key == "r" and is_paused==false then
             _G.performSwitch("over")
+        end
+        if is_paused then
+            table.insert(key_buffer, key)
+            
+            -- Mantém o buffer do tamanho do código
+            if #key_buffer > #codigo_debug then
+                table.remove(key_buffer, 1)
+            end
+            
+            -- Verifica se a sequência bate
+            local match = true
+            if #key_buffer == #codigo_debug then
+                for i = 1, #codigo_debug do
+                    if key_buffer[i] ~= codigo_debug[i] then
+                        match = false
+                        break
+                    end
+                end
+            else
+                match = false
+            end
+            
+            if match then
+                Debug.active = true
+                Debug.show_menu = true
+                -- Toca um som de confirmação se quiser
+                if SFX_Pickup_Heart then SFX_Pickup_Heart:play() end
+                print("CODIGO DEBUG ATIVADO: MODO DEBUG LIGADO")
+            end
         end
     end
 
@@ -1152,6 +1251,35 @@ function love.touchreleased(id, x, y, dx, dy, pressure)
         touch_controls.joystick_id = nil
         if player then
             player.dx, player.dy = 0, 0
+        end
+    end
+end
+
+function love.mousepressed(x, y, button)
+    -- Converte coordenada da tela real para a virtual (jogo)
+    local gameX, gameY = Push:toGame(x, y)
+    
+    if is_paused and Debug.show_menu and gameX and gameY then
+        -- Lógica simples de clique nas abas
+        if gameY >= 45 and gameY <= 55 then
+            if gameX >= 30 and gameX <= 80 then Debug.current_tab = "info" end
+            if gameX >= 100 and gameX <= 160 then Debug.current_tab = "hitbox" end
+        end
+        
+        -- Lógica dos Checkboxes (Posições manuais baseadas no draw acima)
+        if Debug.current_tab == "hitbox" then
+            -- Checkbox Jogador (y=70)
+            if gameY >= 70 and gameY <= 82 then
+                Debug.options.show_player_rect = not Debug.options.show_player_rect
+            end
+            -- Checkbox Inimigos (y=90)
+            if gameY >= 90 and gameY <= 102 then
+                Debug.options.show_enemy_rect = not Debug.options.show_enemy_rect
+            end
+            -- Checkbox Itens (y=110)
+            if gameY >= 110 and gameY <= 122 then
+                Debug.options.show_item_rect = not Debug.options.show_item_rect
+            end
         end
     end
 end
