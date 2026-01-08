@@ -20,6 +20,7 @@ end
 function Utils.setColor(index)
     local c = Utils.pico8_colors[index] or {255, 255, 255} -- Branco como padrão
     love.graphics.setColor(c[1]/255, c[2]/255, c[3]/255, 1)
+    return c
 end
 
 function Utils.distance(a, b)

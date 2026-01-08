@@ -206,17 +206,16 @@ local base_items = {
         get_name = function() return Lang.text("item_vit") end,
         effect = function(p) 
             p.regen = true
-            p.vidas_por_rodada = (p.vidas_por_rodada or 1) + 0.5
-            if p.regen_delay > 3 then p.regen_delay = p.regen_delay - 0.25 end
+            -- Aumenta 1 de vida por nível (já que é só por rodada, +0.5 seria pouco)
+            p.vidas_por_rodada = (p.vidas_por_rodada or 0) + 1
         end, 
         get_desc = function() return Lang.text("item_vit_desc") end, 
         get_desc2 = function(p) 
-            local current_heal = p.vidas_por_rodada or 1
-            local next_heal = current_heal + 0.5
-            local current_delay = p.regen_delay
-            local next_delay = math.max(3, current_delay - 0.25)
+            local current_heal = p.vidas_por_rodada or 0
+            local next_heal = current_heal + 1
             local level = (p.item_levels["Vitalidade"] or 0)
-            return Lang.text("item_vit_stat", level, current_heal, next_heal, current_delay, next_delay)
+            -- Atualizado para usar a nova string de stats
+            return Lang.text("item_vit_stat", level, current_heal, next_heal)
         end, 
         weight = 10,
         icon=Vitalidade,

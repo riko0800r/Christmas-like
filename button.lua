@@ -101,19 +101,20 @@ function GUI:newPanel(x, y, w, h, color, parent)
 end
 
 -- 2. Label
-function GUI:newLabel(x, y, text, font, parent)
+function GUI:newLabel(x, y, text, font, parent, color)
     local label = Widget:new({
         x = x, y = y, w = 0, h = 0,
         text = text,
         font = font or love.graphics.getFont(),
-        type = "label"
+        type = "label",
+        color = color or {1,1,1,1}
     })
     
     label.draw = function(self, ox, oy)
         if not self.visible then return end
         local dx, dy = (ox or 0) + self.x, (oy or 0) + self.y
-        love.graphics.setColor(1, 1, 1, 1)
         love.graphics.setFont(self.font)
+        love.graphics.setColor({self.color[1],self.color[2],self.color[3],self.color[4]})
         love.graphics.print(self.text, dx, dy)
     end
 

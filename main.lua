@@ -231,7 +231,7 @@ function setupButtonsForState(state)
 
         -- 2. Volume Música (SLIDER)
 -- 2. Volume Música (SLIDER)
-        Buttons:newLabel(label_x, start_y + 35, Lang.text("opt_music", "")) 
+        Buttons:newLabel(label_x, start_y + 35, Lang.text("opt_music", ""), Font, nil, {0,0,0,1})
         
         -- AGORA DIVIDE E MULTIPLICA POR 100
         Buttons:newSlider(slider_x, start_y + 35, 120, 16, GameConfig.music_vol / 100, function(val)
@@ -241,7 +241,7 @@ function setupButtonsForState(state)
         end)
 
         -- 3. Volume SFX (SLIDER)
-        Buttons:newLabel(label_x, start_y + 65, Lang.text("opt_sfx", ""))
+        Buttons:newLabel(label_x, start_y + 65, Lang.text("opt_sfx", ""), Font, nil, {0,0,0,1})
         
         -- AGORA DIVIDE E MULTIPLICA POR 100
         Buttons:newSlider(slider_x, start_y + 65, 120, 16, GameConfig.sfx_vol / 100, function(val)

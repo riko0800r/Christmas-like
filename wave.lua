@@ -61,6 +61,9 @@ function Waves.update(dt, player)
     if num_enemies == 0 and not Waves.waiting_next then
         Waves.waiting_next = true
         Waves.timer = 0
+
+        if player and player.onWaveEnd then player:onWaveEnd() end
+
         print("Todos inimigos mortos! Esperando recompensas.")
         return -- Apenas avisa que terminou, main.lua decide o que fazer
     end

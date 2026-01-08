@@ -523,17 +523,28 @@ end
 
 local function draw_enemy(enemy)
     if enemy.image then
-        if Shaders:isFlashing(enemy) then
-            Shaders:applyHitFlash(Shaders:getFlashAmount(enemy))
-        elseif enemy.tipo == "bomb" then
+        Shaders:reset()
+        if enemy.tipo == "bomb" then
             Shaders.presets.bomb(Shaders, enemy)
         elseif enemy.veneno then
             Shaders.presets.poison(Shaders, enemy)
         elseif enemy.fogo then
             Shaders.presets.fire(Shaders, enemy)
+        elseif enemy.gelo then
+            Shaders.presets.ice(Shaders, enemy)
+        elseif enemy.tipo == "boss" or enemy.tipo == "boss2" or enemy.tipo == "boss3" then
+            Shaders.presets.boss(Shaders, enemy)
         else
             Shaders.presets.common(Shaders, enemy)
         end
+
+        if Shaders:isFlashing(enemy) then
+            Shaders:applyHitFlash(Shaders:getFlashAmount(enemy))
+        end
+        
+        Utils.setColor(7)
+        -- 4. Ativa o shader e desenha
+        Shaders:use()
         
         Utils.setColor(7)
         love.graphics.draw(

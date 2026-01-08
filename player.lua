@@ -220,15 +220,6 @@ function Player:update(dt, enemies, time)
         return
     end
 
-    if self.regen then
-        self.t = self.t + dt
-        if self.t >= self.regen_delay then
-            self.max_life = self.max_life + self.regen_forca
-            self.lifes = math.min(self.max_life, self.lifes + self.regen_forca)
-            self.t = 0
-        end
-    end
-
     local current_speed = self.speed
 
     local move_x, move_y = 0, 0
@@ -353,6 +344,25 @@ function Player:update(dt, enemies, time)
     end
 end
 
+function Player:onWaveEnd()
+    if self.regen then
+        -- Usa 'vidas_por_rodada' se definido, senão usa 1 como padrão
+        local cura = self.vidas_por_rodada or 1
+        
+        if self.lifes < self.max_life then
+            self.lifes = math.min(self.max_life, self.lifes + cura)
+            
+            -- Efeito visual e sonoro de cura
+            local Part = require("part") -- Garante que temos acesso às partículas
+            Part.add(self.x, self.y, 15, 2)
+            
+            -- Se tiver o som de pegar vida definido globalmente ou localmente
+            if SFX_Pickup_Heart then 
+                SFX_Pickup_Heart:play() 
+            end
+        end
+    end
+end
 
 function Player:spawnBumerangue()
     -- Escolhe uma direção cardeal aleatória (Cima, Baixo, Esquerda, Direita)
