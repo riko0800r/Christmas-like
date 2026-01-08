@@ -1259,27 +1259,41 @@ function love.mousepressed(x, y, button)
     -- Converte coordenada da tela real para a virtual (jogo)
     local gameX, gameY = Push:toGame(x, y)
     
-    if is_paused and Debug.show_menu and gameX and gameY then
-        -- Lógica simples de clique nas abas
+    if not gameX or not gameY then return end -- Clicou fora da área do jogo
+
+    -- Lógica do menu Debug (mantida igual)
+    if is_paused and Debug.show_menu then
+        -- (Sua lógica de debug existente aqui...)
         if gameY >= 45 and gameY <= 55 then
             if gameX >= 30 and gameX <= 80 then Debug.current_tab = "info" end
             if gameX >= 100 and gameX <= 160 then Debug.current_tab = "hitbox" end
         end
-        
-        -- Lógica dos Checkboxes (Posições manuais baseadas no draw acima)
         if Debug.current_tab == "hitbox" then
-            -- Checkbox Jogador (y=70)
-            if gameY >= 70 and gameY <= 82 then
-                Debug.options.show_player_rect = not Debug.options.show_player_rect
-            end
-            -- Checkbox Inimigos (y=90)
-            if gameY >= 90 and gameY <= 102 then
-                Debug.options.show_enemy_rect = not Debug.options.show_enemy_rect
-            end
-            -- Checkbox Itens (y=110)
-            if gameY >= 110 and gameY <= 122 then
-                Debug.options.show_item_rect = not Debug.options.show_item_rect
-            end
+            if gameY >= 70 and gameY <= 82 then Debug.options.show_player_rect = not Debug.options.show_player_rect end
+            if gameY >= 90 and gameY <= 102 then Debug.options.show_enemy_rect = not Debug.options.show_enemy_rect end
+            if gameY >= 110 and gameY <= 122 then Debug.options.show_item_rect = not Debug.options.show_item_rect end
         end
+    end
+
+    Buttons:mousepressed(gameX, gameY, button)
+end
+
+function love.mousemoved(x, y, dx, dy, istouch)
+    local gameX, gameY = Push:toGame(x, y)
+    if gameX and gameY then
+        Buttons:mousemoved(gameX, gameY, dx, dy)
+    end
+end
+
+function love.mousereleased(x, y, button)
+    local gameX, gameY = Push:toGame(x, y)
+    if gameX and gameY then
+        Buttons:mousereleased(gameX, gameY, button)
+    end
+    
+    if GameState.current == "play" and touch_controls.joystick_id then
+        touch_controls.joystick_active = false
+        touch_controls.joystick_id = nil
+        if player then player.dx, player.dy = 0, 0 end
     end
 end

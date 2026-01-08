@@ -514,7 +514,7 @@ function enemies_module.update_enemy(enemy, player, dt)
     end
     
     if enemy.lifes <= 0 then
-        if love.math.random() < 0.01 then
+        if love.math.random() < 0.0025 then
             enemies_module.spawn_heart(enemy.x, enemy.y)
         end
         enemy.dead = true
@@ -624,8 +624,8 @@ function enemies_module.spawn_heart(x, y)
     table_insert(hearts, {
         x = x,
         y = y,
-        w = 40,
-        h = 40,
+        w = 48,
+        h = 48,
         timer = 0,
         pulse = 0
     })
@@ -635,14 +635,14 @@ function enemies_module.update_hearts(dt, player)
     for i = #hearts, 1, -1 do
         local h = hearts[i]
         
-        h.pulse = h.pulse + dt * 2
+        h.pulse = h.pulse + dt * 2.5
         h.y = h.y + math.sin(h.pulse) * 0.2 -- Efeito leve de flutuação
 
         -- Colisão com jogador
         if Utils.col(h, player) then
             -- Cura a vida atual, respeitando o máximo
             if player.lifes < player.max_life then
-                player.lifes = math.min(player.max_life, player.lifes + 2)
+                player.lifes = math.min(player.max_life, player.lifes + 1)
                 SFX_Pickup_Heart:play()
                 
                 -- Efeito visual de cura
@@ -656,7 +656,7 @@ end
 
 function enemies_module.draw_hearts()
     for _, h in ipairs(hearts) do
-        local scale = 1 + math.sin(h.pulse) * 0.15
+        local scale = 1 + math.sin(h.pulse) * 0.05
         Utils.setColor(7)
         love.graphics.draw(heart_sprite, h.x, h.y, 0, scale, scale, heart_sprite:getWidth()/2, heart_sprite:getHeight()/2)
     end

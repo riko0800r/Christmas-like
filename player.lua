@@ -380,10 +380,10 @@ function Player:spawnBumerangue()
         gifts = {}, -- Presentes que ele solta
         gift_timer = 0,
         rot = 0,
-        hitbox_w = 12,
-        hitbox_h = 12,
-        hitbox_off_x = 6,
-        hitbox_off_y = 6
+        hitbox_w = 28,
+        hitbox_h = 28,
+        hitbox_off_x = -8,
+        hitbox_off_y = -8
     })
 end
 
@@ -626,10 +626,10 @@ function Player:checkTiroSpawn(dt)
         table.insert(self.bullets, {
             x = self.x + self.width / 2, y = self.y + self.height / 2, 
             speed = self.bala_speed, tipo = "normal", width = 4, height = 4,
-            hitbox_w = 4,
-            hitbox_h = 4,
-            hitbox_off_x = 2, -- (16 - 10) / 2
-            hitbox_off_y = 2
+            hitbox_w = 8,
+            hitbox_h = 8,
+            hitbox_off_x = 0, -- (16 - 10) / 2
+            hitbox_off_y = 0
         })
         self.tiro_time = 0
     end
@@ -790,7 +790,12 @@ function Player:checkPedraSpawn(dt)
                 y = 1,
                 speed = 4 * 60 * dt,
                 life_timer = 4,
-                width = 16, height = 12
+                width = 14, height = 12,
+                hitbox_w = 14,
+                hitbox_h = 12,
+                hitbox_off_x = -7, -- (16 - 10) / 2
+                hitbox_off_y = -4
+                
             })
             self.pedra_time = 0
         end
@@ -868,7 +873,7 @@ function Player:updatePedras(dt, enemies)
         local removed = false
         local time_factor = love.timer.getTime() * 1.25
         b.x = b.x + (math.random(-0.75,0.75)) * 2 - math.cos(time_factor*3) * dt
-        b.y = b.y + b.speed * dt * 45 + math.sin(time_factor*3) * dt
+        b.y = b.y + b.speed * dt * 60 + math.sin(time_factor*2) * dt
         b.life_timer = b.life_timer - dt
         if b.life_timer <= 0 then
             table.remove(self.pedras, i)
@@ -1122,6 +1127,17 @@ function Player:draw()
         if self.bumerangue then
             for _, b in ipairs(self.bumerangues) do
                 -- Bumerangues as vezes tem posição calculada na hora, certifique-se de pegar o X/Y real
+                love.graphics.rectangle("line", 
+                    b.x + (b.hitbox_off_x or 0), 
+                    b.y + (b.hitbox_off_y or 0), 
+                    b.hitbox_w or b.w or 16, 
+                    b.hitbox_h or b.h or 16
+                )
+            end
+        end
+
+        if self.pedra then
+            for _, b in ipairs(self.pedras) do
                 love.graphics.rectangle("line", 
                     b.x + (b.hitbox_off_x or 0), 
                     b.y + (b.hitbox_off_y or 0), 
