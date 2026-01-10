@@ -389,8 +389,7 @@ local function update_invocador(enemy, player, dt)
             end
         end
 
-        -- A cada 2.5 segundos, tenta invocar
-        if enemy.state_timer > 240 then
+        if enemy.state_timer > 300 then
             changeState(enemy, "channel")
         end
 
@@ -416,7 +415,7 @@ local function update_invocador(enemy, player, dt)
             if enemy.waves_manager then
                 local minion = enemies_module.spawn_enemy("perseguidor", enemy.x + offsetX, enemy.y + offsetY, enemy.waves_manager)
                 -- Opcional: minion nasce com vida reduzida
-                if minion then minion.lifes = 0.5 end
+                if minion then minion.lifes = 0.25 end
                 
                 -- Efeito visual
                 local part = require("part")
@@ -857,14 +856,16 @@ end
 -- ================== SISTEMA DE CORAÇÕES (DROPS) ==================
 
 function enemies_module.spawn_heart(x, y)
-    table_insert(hearts, {
-        x = x,
-        y = y,
-        w = 48,
-        h = 48,
-        timer = 0,
-        pulse = 0
-    })
+    if #hearts<=4 then
+        table_insert(hearts, {
+            x = x,
+            y = y,
+            w = 48,
+            h = 48,
+            timer = 0,
+            pulse = 0
+        })
+    end
 end
 
 function enemies_module.update_hearts(dt, player)
@@ -872,7 +873,7 @@ function enemies_module.update_hearts(dt, player)
         local h = hearts[i]
         
         h.pulse = h.pulse + dt * 2.5
-        h.y = h.y + math.sin(h.pulse) * 0.2 -- Efeito leve de flutuação
+        h.y = h.y + math.sin(h.pulse) * 0.25 -- Efeito leve de flutuação
 
         -- Colisão com jogador
         if Utils.col(h, player) then
@@ -882,7 +883,7 @@ function enemies_module.update_hearts(dt, player)
                 SFX_Pickup_Heart:play()
                 
                 -- Efeito visual de cura
-                part.add(player.x, player.y, 8, 2) -- Partículas verdes/rosa
+                part.add(player.x, player.y, 8, 2) -- Partículas rosa
                 
                 table_remove(hearts, i)
             end
@@ -894,7 +895,7 @@ function enemies_module.draw_hearts()
     for _, h in ipairs(hearts) do
         local scale = 1 + math.sin(h.pulse) * 0.05
         Utils.setColor(7)
-        love.graphics.draw(heart_sprite, h.x, h.y, 0, scale, scale, heart_sprite:getWidth()/2, heart_sprite:getHeight()/2)
+        love.graphics.draw(heart_sprite, h.x, h.y, 0, scale, scale)
     end
 end
 
