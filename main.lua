@@ -19,6 +19,7 @@ local Push = require('libs/push')
 local Camera = require("camera")
 local Transitions = require("Transitions")
 local Lang = require('lang')
+local Shaders=require("shaders")
 
 -- 2. VARIÁVEIS GLOIAIS DO JOGO
 -- -------------------------------------------------------------
@@ -599,6 +600,7 @@ function love.update(dt)
     PartReward.update(dt)
     Transitions.update(dt)
     updateAudioVolume()
+    Shaders:update(dt)
 
     local is_menu = false
     for _, state in ipairs(menu_states) do

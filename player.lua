@@ -710,8 +710,8 @@ function Player:spawnRodas(num, speed)
             width = 8, height = 8,
             hitbox_w = 8,
             hitbox_h = 8,
-            hitbox_off_x = 4, -- (16 - 10) / 2
-            hitbox_off_y = 4
+            hitbox_off_x = -2, -- (16 - 10) / 2
+            hitbox_off_y = -2
         })
     end
 end
@@ -735,8 +735,8 @@ function Player:checkSombrioSpawn(dt)
                     height = 8,
                     hitbox_w = 8,
                     hitbox_h = 8,
-                    hitbox_off_x = 4, -- (16 - 10) / 2
-                    hitbox_off_y = 4
+                    hitbox_off_x = -4, -- (16 - 10) / 2
+                    hitbox_off_y = -4
                 })
             else
                 table.insert(self.sombrios, {
@@ -749,8 +749,8 @@ function Player:checkSombrioSpawn(dt)
                     height = 8,
                     hitbox_w = 8,
                     hitbox_h = 8,
-                    hitbox_off_x = 4, -- (16 - 10) / 2
-                    hitbox_off_y = 4
+                    hitbox_off_x = -4, -- (16 - 10) / 2
+                    hitbox_off_y = -4
                 }) 
             end
         end
@@ -1148,6 +1148,28 @@ function Player:draw()
 
         if self.pedra then
             for _, b in ipairs(self.pedras) do
+                love.graphics.rectangle("line", 
+                    b.x + (b.hitbox_off_x or 0), 
+                    b.y + (b.hitbox_off_y or 0), 
+                    b.hitbox_w or b.w or 16, 
+                    b.hitbox_h or b.h or 16
+                )
+            end
+        end
+
+        if self.sombrio_ativo then
+            for _, b in ipairs(self.sombrios) do
+                love.graphics.rectangle("line", 
+                    b.x + (b.hitbox_off_x or 0), 
+                    b.y + (b.hitbox_off_y or 0), 
+                    b.hitbox_w or b.w or 16, 
+                    b.hitbox_h or b.h or 16
+                )
+            end
+        end
+
+        if self.roda then
+            for _, b in ipairs(self.rodas) do
                 love.graphics.rectangle("line", 
                     b.x + (b.hitbox_off_x or 0), 
                     b.y + (b.hitbox_off_y or 0), 

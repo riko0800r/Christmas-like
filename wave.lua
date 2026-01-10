@@ -15,12 +15,14 @@ Waves.wave_final = 16 -- <<< OBJETIVO DE VITÓRIA DEFINIDO AQUI
 local enemy_types = {
     "perseguidor",
     "atirador",
-    "horizontal",
     "circulador",
     "bomb",
     "arma",
     "divisor",
     "teleportador",
+    "horizontal",
+    "paladino",
+    "invocador",
 }
 
 -- Tipos possíveis de bosses (escolhidos a cada 8 waves)

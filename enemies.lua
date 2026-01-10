@@ -38,10 +38,35 @@ local function dist(x1, y1, x2, y2)
     return sqrt((x2 - x1)^2 + (y2 - y1)^2)
 end
 
+-- =============================================================
+--                  SISTEMA DE ESTADOS (FSM)
+-- =============================================================
+
+-- Função auxiliar para trocar o estado do inimigo
+local function changeState(enemy, newState)
+    if enemy.state == newState then return end -- Já está nesse estado
+    
+    -- Lógica de Saída (Exit) do estado anterior (Opcional)
+    if enemy.state == "dash" then
+        enemy.speed = enemy.base_speed -- Reseta velocidade ao sair do dash
+    end
+
+    enemy.state = newState
+    enemy.state_timer = 0 -- Reseta o timer do estado
+    enemy.state_sub_timer = 0 -- Timer secundário se precisar
+    
+    -- Lógica de Entrada (Enter) no novo estado
+    if newState == "dash" then
+        -- Exemplo: Define vetor de ataque na entrada
+        enemy.target_x = 0 -- Será definido no update
+        enemy.target_y = 0
+    end
+end
+
 local EnemyPresets = {
     perseguidor = {demage_preset=1,speed_base = 1.25, speed_scale = 1/16, hp_base = 1.5, hp_scale = 1/8,demage_scale=1/800, accel_mult = 1.5,sprite=1},
     atirador = {demage_preset=1,speed_base = 0.55, speed_scale = 1/16, hp_base = 3, hp_scale = 1/8,demage_scale=1/300, shoot_rate = 60*6, shoot_timer = 0,sprite=1},
-    horizontal = {demage_preset=1,speed_base = 2, speed_scale = 1/16, hp_base = 1, hp_scale = 1/8,demage_scale=1/200, dir = 1,sprite=1},
+    horizontal = {demage_preset=1,speed_base = 2, speed_scale = 1/16, hp_base = 1.5, hp_scale = 1/8,demage_scale=1/200, dir = 1,sprite=1},
     bomb = {demage_preset=1,speed_base = 1.40, speed_scale = 1/16, hp_base = 2, hp_scale = 1/8,demage_scale=1/400, explosion_radius = 12,sprite=1}, 
     arma = {demage_preset=1,speed_base = 0.25, speed_scale = 1/16, hp_base = 2, hp_scale = 1/8,demage_scale=1/400, shoot_timer = 0, time = 0,sprite=1},
     circulador = {demage_preset=1,speed_base = 1, speed_scale = 1/16, hp_base = 4, hp_scale = 1/8,demage_scale=1/400, shoot_timer = 0, num_bullets = 10, orbit_radius = 12, orbit_speed = 1,sprite=1},
@@ -70,8 +95,36 @@ local EnemyPresets = {
     },
 
     divisor = {
-        demage_preset=2, speed_base = 0.7, speed_scale = 1/16, hp_base = 4.5, hp_scale = 1/8, demage_scale=1/600, 
+        demage_preset=2, speed_base = 0.7, speed_scale = 1/16, hp_base = 5, hp_scale = 1/8, demage_scale=1/600, 
         accel_mult = 1.0, sprite=5,
+    },
+    paladino = {
+        demage_preset=2, 
+        speed_base = 1.25, 
+        speed_scale = 1/16, 
+        hp_base = 5,
+        hp_scale = 1/4,
+        demage_scale=1/400,
+        sprite=7 -- Use o sprite que preferir
+    },
+    sniper = {
+        demage_preset=1, -- Dano alto
+        speed_base = 1.2, 
+        speed_scale = 1/16, 
+        hp_base = 3, 
+        hp_scale = 1/6, 
+        demage_scale=1/200, 
+        sprite=1,
+    },
+
+    invocador = {
+        demage_preset=1,
+        speed_base = 0.75,
+        speed_scale = 1/16, 
+        hp_base = 6,
+        hp_scale = 1/4, 
+        demage_scale=0, 
+        sprite=1,
     },
 }
 
@@ -109,6 +162,9 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         waves_manager = Waves,
         flpx=1,
         tempo_pausado=0,
+        state = "patrol",      -- Estado inicial padrão
+        state_timer = 1,       -- Timer geral do estado
+        base_speed = 0,        -- Para guardar a velocidade original
     }
 
     enemy.w = enemy.w or 16 -- Se não tiver largura definida, assume 16
@@ -219,6 +275,159 @@ local function update_bomb(enemy, player, dt)
     end
 end
 
+local function update_paladino(enemy, player, dt)
+    -- Atualiza timer do estado
+    enemy.state_timer = enemy.state_timer + dt * 60 -- Usando base 60fps do seu jogo
+    
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+
+    -- ================= ESTADO: PATRULHA =================
+    if enemy.state == "patrol" then
+        -- Movimento errático suave
+        if enemy.state_timer % 120 == 0 then
+            local angle = love.math.random() * math.pi * 2
+            enemy.dx = math.cos(angle) * (enemy.speed * 0.5)
+            enemy.dy = math.sin(angle) * (enemy.speed * 0.5)
+        end
+        
+        enemy.x = enemy.x + enemy.dx * dt * 60
+        enemy.y = enemy.y + enemy.dy * dt * 60
+        
+        -- Se player chegar perto, entra em alerta
+        if dist_p < 8*18 then
+            changeState(enemy, "alert")
+        end
+
+    -- ================= ESTADO: ALERTA =================
+    elseif enemy.state == "alert" then
+        -- Fica parado por 0.5 segundos (30 frames) antes de perseguir
+        enemy.dx, enemy.dy = 0, 0
+        
+        if enemy.state_timer > 25 then
+            changeState(enemy, "chase")
+        end
+
+    -- ================= ESTADO: PERSEGUIÇÃO =================
+    elseif enemy.state == "chase" then
+        -- Persegue o player
+        update_chaser(enemy, player, dt, 1.5) -- 1.5x velocidade
+        
+        -- Se estiver muito perto, prepara ataque
+        if dist_p < 128 then
+            changeState(enemy, "prepare_attack")
+        -- Se o player fugir muito, volta a patrulhar
+        elseif dist_p > 256 then
+            changeState(enemy, "patrol")
+        end
+
+    -- ================= ESTADO: PREPARAR ATAQUE =================
+    elseif enemy.state == "prepare_attack" then
+        -- Para e mira
+        enemy.dx, enemy.dy = 0, 0
+        
+        -- Flash vermelho ou efeito visual aqui seria bom
+        if enemy.state_timer > 30 then -- Espera ~0.4s
+            -- Calcula direção do dash
+            local dx, dy = player.x - enemy.x, player.y - enemy.y
+            local mag = math.sqrt(dx^2 + dy^2)
+            if mag > 0 then
+                enemy.dash_dx = (dx/mag)
+                enemy.dash_dy = (dy/mag)
+            else
+                enemy.dash_dx, enemy.dash_dy = 1, 0
+            end
+            changeState(enemy, "dash")
+        end
+
+    -- ================= ESTADO: DASH (ATAQUE) =================
+    elseif enemy.state == "dash" then
+        local dash_speed = enemy.speed * 3.5
+        enemy.x = enemy.x + enemy.dash_dx * dash_speed * dt * 60
+        enemy.y = enemy.y + enemy.dash_dy * dash_speed * dt * 60
+        
+        -- Solta particulas durante o dash
+        if math.random() < 0.5 then
+            part.add(enemy.x, enemy.y, 5, 8) -- Usa o sistema de partículas existente
+        end
+
+        -- Dash dura pouco (30 frames)
+        if enemy.state_timer > 30 then
+            changeState(enemy, "tired")
+        end
+
+    -- ================= ESTADO: CANSADO =================
+    elseif enemy.state == "tired" then
+        enemy.dx, enemy.dy = 0, 0
+        -- Recupera fôlego por 1.5s
+        if enemy.state_timer > 30 then
+            changeState(enemy, "chase")
+        end
+    end
+end
+
+local function update_invocador(enemy, player, dt)
+    enemy.state_timer = enemy.state_timer + dt * 60
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+
+    -- ================= ESTADO: VAGAR/FUGIR (PADRÃO) =================
+    if enemy.state == "patrol" then
+        -- Foge do player se estiver perto, senão anda aleatório
+        if dist_p < 128 then
+            -- Lógica de fugir (igual ao sniper)
+            local dx, dy = enemy.x - player.x, enemy.y - player.y
+            local mag = math.sqrt(dx^2 + dy^2)
+            if mag > 0 then
+                enemy.x = enemy.x + (dx/mag) * enemy.speed * dt * 60
+                enemy.y = enemy.y + (dy/mag) * enemy.speed * dt * 60
+            end
+        else
+            local dx, dy = enemy.x - player.x, enemy.y - player.y
+            local mag = math.sqrt(dx^2 + dy^2)
+            if mag > 0 then
+                enemy.x = enemy.x - (dx/mag) * enemy.speed * dt * 60
+                enemy.y = enemy.y - (dy/mag) * enemy.speed * dt * 60
+            end
+        end
+
+        -- A cada 2.5 segundos, tenta invocar
+        if enemy.state_timer > 240 then
+            changeState(enemy, "channel")
+        end
+
+    -- ================= ESTADO: CANALIZANDO =================
+    elseif enemy.state == "channel" then
+        enemy.dx, enemy.dy = 0, 0 -- Fica imóvel (vulnerável)
+        
+        -- Efeito visual: tremer
+        enemy.x = enemy.x + math.random(-1, 1)
+        
+        -- Demora 1.5s para invocar
+        if enemy.state_timer > 90 then
+            changeState(enemy, "summon")
+        end
+
+    -- ================= ESTADO: INVOCAR =================
+    elseif enemy.state == "summon" then
+        -- Invoca 2 inimigos fracos (ex: perseguidor ou bomb)
+        for i = 1, 2 do
+            local offsetX = math.random(-24, 24)
+            local offsetY = math.random(-24, 24)
+            -- Usa o waves_manager que salvamos no spawn_enemy
+            if enemy.waves_manager then
+                local minion = enemies_module.spawn_enemy("perseguidor", enemy.x + offsetX, enemy.y + offsetY, enemy.waves_manager)
+                -- Opcional: minion nasce com vida reduzida
+                if minion then minion.lifes = 0.5 end
+                
+                -- Efeito visual
+                local part = require("part")
+                part.add(enemy.x + offsetX, enemy.y + offsetY, 15, 7) -- Partícula branca/fumaça
+            end
+        end
+        
+        changeState(enemy, "patrol")
+    end
+end
+
 local function update_teleportador(enemy, player, dt)
     enemy.teleport_timer = enemy.teleport_timer + dt * FRAMERATE
     
@@ -304,7 +513,7 @@ end
 
 local function update_horizontal(enemy, _, dt)
     enemy.x = enemy.x + enemy.speed * enemy.dir * dt * FRAMERATE
-    if enemy.x <= -8 or enemy.x >= (128*4)-8 then
+    if enemy.x <= 0 or enemy.x >= (128*4)-8 then
         enemy.dir = -enemy.dir
         enemy.x = enemy.x + enemy.dir * 8
         enemy.y = enemy.y + 24
@@ -369,11 +578,11 @@ local function update_boss2(enemy, player, dt)
         enemy.y = enemy.y + enemy.dy * dt * FRAMERATE
     end
     enemy.summon_timer = (enemy.summon_timer or 0) + dt * FRAMERATE
-    if enemy.summon_timer >= 90 then
+    if enemy.summon_timer >= 60*3 then
         enemy.summon_timer = 0
-        enemies_module.spawn_enemy("atirador", enemy.x+8, enemy.y+32,enemy.waves_manager)
+        enemies_module.spawn_enemy("paladino", enemy.x+8, enemy.y+32,enemy.waves_manager)
     end
-    if enemy.x <= -8 or enemy.x >= (128*4)-8 then
+    if enemy.x <= 0 or enemy.x >= (128*4)-8 then
         enemy.dirx = -enemy.dirx
         enemy.y = enemy.y + 24
         enemy.x = enemy.x + enemy.dirx*17
@@ -468,10 +677,15 @@ local update_functions = {
     arma = update_arma,
     teleportador = update_teleportador,
     divisor = function(e, p, dt) update_chaser(e, p, dt, e.accel_mult) end,
+    paladino = update_paladino,
+    invocador = update_invocador,
 }
+
 
 function enemies_module.update_enemy(enemy, player, dt)
     enemy.speed = clamp(0.95, enemy.speed, MAX_ENEMY_SPEED)
+    enemy.x=clamp(0,enemy.x,512)
+    enemy.y=clamp(0,enemy.y,256)
     local update_fn = update_functions[enemy.tipo]
     if enemy.tempo_pausado<=0 then
         if update_fn then
@@ -619,13 +833,24 @@ local function draw_enemy(enemy)
         )
         Shaders:clear()
     end
+    
+    -- Desenhar aura de invocação
+    if enemy.tipo == "invocador" and enemy.state == "channel" then
+        Utils.setColor(10) -- amarelo
+        local raio = 16 + math.sin(love.timer.getTime() * 10) * 4
+        love.graphics.circle("line", enemy.x + 8, enemy.y + 8, raio)
+    end
 
     if Debug.options.show_enemy_rect then
         love.graphics.setColor(1, 0, 0, 1) -- Vermelho para inimigos
         -- Ajuste w e h conforme a lógica de colisão do seu inimigo
         local w = enemy.w or 16
         local h = enemy.h or 16
-        love.graphics.rectangle("line", enemy.x-(4*enemy.flpx), enemy.y-4, w*enemy.flpx, h)
+        love.graphics.rectangle("line", enemy.x-(2*enemy.flpx), enemy.y-4, w*enemy.flpx, h)
+    end
+
+    if Debug.active then -- Se tiver modo debug
+        love.graphics.print(enemy.state, enemy.x - 10, enemy.y - 20)
     end
 end
 
