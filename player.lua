@@ -150,6 +150,7 @@ function Player.new()
     self.bumerangue_delay = 1.8
     self.bumerangue_speed = 4
     self.bumerangue_range = 128 -- Distancia maxima que ele vai
+    self.bumerangue_delay_hit = 0.05
     
     -- === POWER UPS ===
     self.speed_boost_timer = 0 -- Se maior que 0, o jogador está rápido
@@ -393,7 +394,9 @@ function Player:spawnBumerangue()
         hitbox_w = 28,
         hitbox_h = 28,
         hitbox_off_x = -8,
-        hitbox_off_y = -8
+        hitbox_off_y = -8,
+        hit_delay_atual=0,
+        hit_delay_timer=self.bumerangue_delay_hit,
     })
 end
 
@@ -407,6 +410,8 @@ function Player:updateBumerangues(dt, enemies)
         b.rot = b.rot + 15 * dt -- Rotação visual
 
         local return_to_player = false
+
+        b.hit_delay_atual=b.hit_delay_atual-1/60
 
         if b.state == "going" then
             -- Movimento de ida
@@ -457,12 +462,13 @@ function Player:updateBumerangues(dt, enemies)
             -- 1. Colisão do Bumerangue (o objeto voando) com Inimigos
             local rectB = {x=b.x-4, y=b.y-4, w=28, h=28}
             for _, e in ipairs(enemies) do
-                if Utils.col(rectB, {x=e.x, y=e.y, w=e.w, h=e.h}) then
+                if Utils.col(rectB, {x=e.x, y=e.y, w=e.w, h=e.h}) and b.hit_delay_atual<=0 then
                     self:recordDamage("Bumerangue", self.demage)
                     e:takeDamage(self.demage, self)
                     if self.veneno then e.veneno = true end
                     if self.fogo then e.fogo = true end
                     if self.gelo then e.gelo = true end
+                    b.hit_delay_atual=b.hit_delay_timer
                 end
             end
         end

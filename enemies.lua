@@ -577,7 +577,7 @@ local function update_boss2(enemy, player, dt)
         enemy.y = enemy.y + enemy.dy * dt * FRAMERATE
     end
     enemy.summon_timer = (enemy.summon_timer or 0) + dt * FRAMERATE
-    if enemy.summon_timer >= 60*3 then
+    if enemy.summon_timer >= 60*4 then
         enemy.summon_timer = 0
         enemies_module.spawn_enemy("paladino", enemy.x+8, enemy.y+32,enemy.waves_manager)
     end
@@ -591,7 +591,7 @@ end
 
 local function update_boss3(enemy, player, dt)
     enemy.x = enemy.x + enemy.speed * enemy.dir * dt * FRAMERATE
-    if enemy.x <= -8 or enemy.x >= (128*4)-8 then enemy.dir = -enemy.dir end
+    if enemy.x <= 1 or enemy.x >= (128*4)-8 then enemy.dir = -enemy.dir end
     enemy.y=16
     enemy.timer = (enemy.timer or 0) + 1
     if enemy.timer % 45 == 0 then

@@ -63,7 +63,7 @@ function GUI:new()
         selectedIndex = 1,
         gamepadTimer = 0,
         inputCooldown = 0,
-        debounceTime = 0.15,
+        debounceTime = 0.05,
         draggingWidget = nil, -- Armazena qual slider está sendo arrastado
         usingMouse = false    -- Flag para esconder highlight de teclado se usar mouse
     }
@@ -470,8 +470,8 @@ function GUI:keypressed(key)
     elseif key == "up" or key == "w" then self:moveSelection(-1)
     elseif key == "return" or key == "x" or key == "space" or key == "e" then self:executeSelected()
     elseif current and current.type == "slider" then
-        if key == "left" or key == "a" then current:setValue(current.value - 0.05)
-        elseif key == "right" or key == "d" then current:setValue(current.value + 0.05)
+        if key == "left" or key == "a" then current:setValue(current.value - 0.01)
+        elseif key == "right" or key == "d" then current:setValue(current.value + 0.01)
         end
     end
 end
@@ -484,8 +484,8 @@ function GUI:gamepadpressed(joystick, button)
         if button == "dpdown" then self:moveSelection(1)
         elseif button == "dpup" then self:moveSelection(-1)
         elseif current.type == "slider" then
-            if button == "dpleft" then current:setValue(current.value - 0.05) 
-            elseif button == "dpright" then current:setValue(current.value + 0.05)
+            if button == "dpleft" then current:setValue(current.value - 0.01) 
+            elseif button == "dpright" then current:setValue(current.value + 0.01)
             end
         end
     end
@@ -497,7 +497,7 @@ function GUI:update(dt)
     
     -- Lógica de repetição de tecla (Holding key)
     local current = self.focusableList[self.selectedIndex]
-    local speed = 0.5 
+    local speed = 0.5
     if current and current.type == "slider" and not self.usingMouse then
         if love.keyboard.isDown("left", "a") then current:setValue(current.value - (speed * dt))
         elseif love.keyboard.isDown("right", "d") then current:setValue(current.value + (speed * dt))

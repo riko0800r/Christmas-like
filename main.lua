@@ -152,15 +152,51 @@ function setupButtonsForState(state)
     elseif state == "menu" then
         local start_y = 65 -- Subi um pouco para caber mais botões
         
+        local record_wave = Save.data.records.best_wave or 0
+        local record_time = Save.data.records.best_time or 0
+        
+        local time_str = string.format("%02d:%02d", math.floor(record_time/60), math.floor(record_time%60))
+        local txt_record = (record_wave > 0) 
+            and Lang.text("menu_record", record_wave, time_str)
+            or Lang.text("menu_no_record")
+            
+        -- Small label at top
+        Buttons:newLabel(132 - (Font:getWidth(txt_record)/2), 256-8, txt_record, Font, nil, {1, 0.8, 0, 1})
+
+        -- === CONTINUE BUTTON ===
+        if Save.hasRun() then
+            local wave_num = Save.data.run.wave_info.current
+            Buttons:newButton((512/2)-90, start_y - 30, 194, 24, Lang.text("menu_continue_run", wave_num), function()
+                SFX_select:play()
+                if Save.loadRun() then
+                    _G.switchState("play")
+                    -- Restart music
+                    if Musica_Atual then Musica_Atual:stop() end
+                    if GameConfig.musica_antiga==false then
+                        Musica_Atual = Luta_Musica
+                    else
+                        Musica_Atual = Musica_Luta_Antiga
+                    end
+                    Musica_Atual:play()
+                    Musica_Atual:setVolume(0.25)
+                    Musica_Atual:setLooping(true)
+                else
+                    print("Error loading run")
+                end
+            end,
+            function() end,
+            Jogar_ICON) -- You can use a different icon if you have one
+        end
+
         Buttons:newButton((512/2)-90, start_y, 194, 24, Lang.text("menu_play"), function()
             SFX_select:play()
+            -- Important: If starting new game, delete old run? 
+            -- Usually yes, or warn. For now, we overwrite on next save.
+            Save.deleteRun() 
             resetGame()
             _G.switchState("menu_difficulty")
         end,
-        function ()
-            
-        end,
-        Jogar_ICON)
+        function () end, Jogar_ICON)
         
         Buttons:newButton((512/2)-90, start_y + 30, 194, 24, Lang.text("menu_tutorial"), function()
             SFX_select:play()
@@ -210,21 +246,15 @@ function setupButtonsForState(state)
         local slider_x = 220 -- Posição do Slider
         
         -- 1. Idioma (Botão normal)
-        local txt_lang = Lang.text("opt_lang", string.upper(Lang.current))
-        Buttons:newButton(192, start_y, 160, 24, txt_lang, function()
+         Buttons:newButton(192, 40, 160, 24, Lang.text("opt_lang", string.upper(Lang.current)), function()
             SFX_select:play()
             local novo = (Lang.current == "pt-br") and "en" or "pt-br"
             Lang.setLanguage(novo)
             setupButtonsForState("menu_options")
-            Save.saveDataMenu()
-        end,
-        function ()
-            
-        end,
-        Terra_ICON)
+            Save.saveSettings() -- UPDATED
+        end, function() end, Terra_ICON)
 
         -- 2. Volume Música (SLIDER)
--- 2. Volume Música (SLIDER)
         Buttons:newLabel(label_x, start_y + 35, Lang.text("opt_music", ""), Font, nil, {0,0,0,1})
         
         -- AGORA DIVIDE E MULTIPLICA POR 100
@@ -232,7 +262,7 @@ function setupButtonsForState(state)
             -- Multiplica por 100 e arredonda. Ex: 0.35 vira 35.
             GameConfig.music_vol = math.floor(val * 100)
             updateAudioVolume()
-            Save.saveDataMenu()
+            Save.saveSettings() -- UPDATED
         end)
 
         -- 3. Volume SFX (SLIDER)
@@ -243,7 +273,7 @@ function setupButtonsForState(state)
             GameConfig.sfx_vol = math.floor(val * 100)
             if math.random() < 0.25 then SFX_select:play() end
             updateAudioVolume()
-            Save.saveDataMenu()
+            Save.saveSettings() -- UPDATED
         end)
         -- 4. Timer Speedrun (Botão Toggle)
         local state_timer = GameConfig.show_timer and Lang.text("state_on") or Lang.text("state_off")
@@ -251,6 +281,7 @@ function setupButtonsForState(state)
             SFX_select:play()
             GameConfig.show_timer = not GameConfig.show_timer
             setupButtonsForState("menu_options")
+            Save.saveSettings() -- UPDATED
         end,
         function ()
             
@@ -289,7 +320,7 @@ function setupButtonsForState(state)
                 Musica_Atual:seek(pos) -- Tenta manter a sincronia
                 Musica_Atual:setLooping(true)
             end
-            Save.saveDataMenu()
+            Save.saveSettings() -- UPDATED
             setupButtonsForState("menu_options")
             end,
             function ()
@@ -307,6 +338,9 @@ function setupButtonsForState(state)
         end,
         Voltar_ICON)
     elseif state == "over" then
+        Save.deleteRun()
+        Save.checkRecord(Waves.current_wave, game_timer)
+        
         Buttons:newButton(192, 256-32, 128, 24, Lang.text("menu_back"), function()
             SFX_select:play()
             resetGame()
@@ -377,38 +411,12 @@ function setupButtonsForState(state)
                 Characters.selected_index = i
             end)
         end
-    elseif state == "final" then
-        -- Botão Modo Infinito (Mantém igual)
-        Buttons:newButton(192, 100, 128, 24, Lang.text(menus.end_game[1]), function()
-            Waves.enable_infinite_mode()
-            Waves.active = true
-            SFX_select:play()
-            _G.switchState("play")
-            -- (Lógica de música mantém igual...)
-             if Musica_Atual then Musica_Atual:stop() end
-            if GameConfig.musica_antiga==false then
-                Musica_Atual = Luta_Musica
-            else
-                Musica_Atual = Musica_Luta_Antiga
-            end
-            Musica_Atual:play()
-            Musica_Atual:setVolume(0.25)
-            Musica_Atual:setLooping(true)
-        end)
-
-        -- Botão Acabar com o Mundo (ALTERADO)
-        Buttons:newButton(192, 130, 128, 24, Lang.text(menus.end_game[2]), function()
-            SFX_select:play()
-            -- NÃO reseta o jogo aqui, apenas muda para a tela de vitória
-            -- para podermos ler os status do player
-            _G.switchState("victory")
-        end)
-
-    -- NOVO ESTADO: VICTORY
     elseif state == "victory" then
+        Save.checkRecord(Waves.current_wave, game_timer)
         Buttons:newButton(192, 256-32, 128, 24, Lang.text("menu_back"), function()
             SFX_select:play()
-            resetGame() -- Reseta apenas quando sair da tela de vitória
+            Save.deleteRun() -- Victory -> Back to menu = Run ends
+            resetGame() 
             _G.switchState("menu")
         end)
     elseif state == "rewards" then
@@ -522,7 +530,7 @@ function love.load()
         fullscreen   = false,
         musica_antiga= false,
     }
-    Save.loadDataMenu()
+    Save.load()
     Seed.new_random()
     love.graphics.setDefaultFilter("nearest", "nearest")
     
@@ -533,7 +541,6 @@ function love.load()
     
     player = Player.new()
     Characters.load(player)
-    Waves.start()
     -- Lógica simples: se estava tocando luta, toca a versão de luta escolhida
     if GameConfig.musica_antiga == false then
         Musica_Atual = Menu_Musica
@@ -680,6 +687,8 @@ function love.update(dt)
         if player.lifes <= 0 then
             SFX_Morte:play()
             Musica_Atual:stop()
+            Save.deleteRun() -- Morreu: apaga o save
+            Save.checkRecord(Waves.current_wave, game_timer) -- Salva recorde
             _G.switchState("over")
         end
     end
@@ -725,7 +734,7 @@ local function drawWorld()
     elseif GameState.current == "menu" then
         draw_map_placeholder()
         Utils.setColor(0)
-        Utils.centerText(Lang.text("title_main"), 48)
+        Utils.centerText(Lang.text("title_main"), 16)
         Buttons:drawAll()
     elseif GameState.current == "menu_difficulty" then
         draw_map_placeholder()
@@ -1304,5 +1313,14 @@ function love.mousereleased(x, y, button)
         touch_controls.joystick_active = false
         touch_controls.joystick_id = nil
         if player then player.dx, player.dy = 0, 0 end
+    end
+end
+
+function love.quit()
+    if GameState.current == "play" or GameState.current == "rewards" then
+        if player and player.lifes > 0 then
+            Save.saveRunState()
+            print("Run saved successfully!")
+        end
     end
 end

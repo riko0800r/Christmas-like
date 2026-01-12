@@ -172,6 +172,10 @@ local db = {
         
         ["pause_title"]="PAUSADO",
         ["pause_sub"]  ="Aperte ESC para voltar",
+
+        ["menu_continue_run"] = "Continuar Run (Onda %d)", -- New
+        ["menu_record"]       = "Recorde: Onda %d | Tempo: %s", -- New
+        ["menu_no_record"]    = "Sem Recorde", -- New
     },
     ["en"] = {
         -- MENU
@@ -340,6 +344,10 @@ local db = {
 
         ["pause_title"]="PAUSED",
         ["pause_sub"]  ="Press Esc to unpause the game.",
+        
+        ["menu_continue_run"] = "Continue Run (Wave %d)", -- New
+        ["menu_record"]       = "Best: Wave %d | Time: %s", -- New
+        ["menu_no_record"]    = "No Record", -- New
     }
 }
 
