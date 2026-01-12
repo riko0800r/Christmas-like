@@ -20,6 +20,7 @@ local Camera = require("camera")
 local Transitions = require("Transitions")
 local Lang = require('lang')
 local Shaders=require("shaders")
+local Save=require("save")
 
 -- 2. VARIÁVEIS GLOIAIS DO JOGO
 -- -------------------------------------------------------------
@@ -73,15 +74,6 @@ local touch_controls = {
     joystick_pos = { x = 0, y = 0 },
     joystick_radius = 60,
     action_button = { x = 0, y = 0, radius = 0 }
-}
-
-
-GameConfig = {
-    music_vol = 12,
-    sfx_vol = 20,
-    show_timer   = true,
-    fullscreen   = false,
-    musica_antiga= false,
 }
 
 Debug = {
@@ -224,6 +216,7 @@ function setupButtonsForState(state)
             local novo = (Lang.current == "pt-br") and "en" or "pt-br"
             Lang.setLanguage(novo)
             setupButtonsForState("menu_options")
+            Save.saveDataMenu()
         end,
         function ()
             
@@ -239,6 +232,7 @@ function setupButtonsForState(state)
             -- Multiplica por 100 e arredonda. Ex: 0.35 vira 35.
             GameConfig.music_vol = math.floor(val * 100)
             updateAudioVolume()
+            Save.saveDataMenu()
         end)
 
         -- 3. Volume SFX (SLIDER)
@@ -249,10 +243,11 @@ function setupButtonsForState(state)
             GameConfig.sfx_vol = math.floor(val * 100)
             if math.random() < 0.25 then SFX_select:play() end
             updateAudioVolume()
+            Save.saveDataMenu()
         end)
         -- 4. Timer Speedrun (Botão Toggle)
         local state_timer = GameConfig.show_timer and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 95, 194, 24, Lang.text("opt_timer", state_timer), function()
+        Buttons:newButton(192, start_y + 95, 194+32, 24, Lang.text("opt_timer", state_timer), function()
             SFX_select:play()
             GameConfig.show_timer = not GameConfig.show_timer
             setupButtonsForState("menu_options")
@@ -264,7 +259,7 @@ function setupButtonsForState(state)
 
         -- 5. Fullscreen (Botão Toggle)
         local state_full = GameConfig.fullscreen and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 125, 194, 24, Lang.text("opt_fullscreen", state_full), function()
+        Buttons:newButton(192, start_y + 125, 194+32, 24, Lang.text("opt_fullscreen", state_full), function()
             SFX_select:play()
             toggleFullscreen()
             setupButtonsForState("menu_options")
@@ -276,7 +271,7 @@ function setupButtonsForState(state)
 
         -- No setupButtonsForState("menu_options"), altere o botão de música:
         local music_label = GameConfig.musica_antiga and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 155, 194, 24, Lang.text("opt_old_music", music_label), function()
+        Buttons:newButton(192, start_y + 155, 194+32, 24, Lang.text("opt_old_music", music_label), function()
             SFX_select:play()
             GameConfig.musica_antiga = not GameConfig.musica_antiga
             
@@ -294,6 +289,7 @@ function setupButtonsForState(state)
                 Musica_Atual:seek(pos) -- Tenta manter a sincronia
                 Musica_Atual:setLooping(true)
             end
+            Save.saveDataMenu()
             setupButtonsForState("menu_options")
             end,
             function ()
@@ -519,6 +515,14 @@ function updateBackgrounds(dt)
 end
 
 function love.load()
+    GameConfig = {
+        music_vol = 12,
+        sfx_vol = 20,
+        show_timer   = true,
+        fullscreen   = false,
+        musica_antiga= false,
+    }
+    Save.loadDataMenu()
     Seed.new_random()
     love.graphics.setDefaultFilter("nearest", "nearest")
     
@@ -530,10 +534,13 @@ function love.load()
     player = Player.new()
     Characters.load(player)
     Waves.start()
-
-    Musica_Atual = Menu_Musica
+    -- Lógica simples: se estava tocando luta, toca a versão de luta escolhida
+    if GameConfig.musica_antiga == false then
+        Musica_Atual = Menu_Musica
+    else
+        Musica_Atual = Musica_Menu_Antiga
+    end
     Musica_Atual:play()
-    Musica_Atual:setVolume(0.25)
     Musica_Atual:setLooping(true)
 
     Config_ICON=love.graphics.newImage("assets/ConfigICON.png")

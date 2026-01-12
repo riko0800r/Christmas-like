@@ -103,7 +103,7 @@ local EnemyPresets = {
         speed_base = 1.25, 
         speed_scale = 1/16, 
         hp_base = 5,
-        hp_scale = 1/4,
+        hp_scale = 1/16,
         demage_scale=1/400,
         sprite=7 -- Use o sprite que preferir
     },
@@ -121,8 +121,8 @@ local EnemyPresets = {
         demage_preset=1,
         speed_base = 0.75,
         speed_scale = 1/16, 
-        hp_base = 6,
-        hp_scale = 1/4, 
+        hp_base = 2.5,
+        hp_scale = 1/16, 
         demage_scale=0, 
         sprite=1,
     },
@@ -408,14 +408,14 @@ local function update_invocador(enemy, player, dt)
     -- ================= ESTADO: INVOCAR =================
     elseif enemy.state == "summon" then
         -- Invoca 2 inimigos fracos (ex: perseguidor ou bomb)
-        for i = 1, 2 do
+        for i = 1, 1 do
             local offsetX = math.random(-24, 24)
             local offsetY = math.random(-24, 24)
             -- Usa o waves_manager que salvamos no spawn_enemy
             if enemy.waves_manager then
                 local minion = enemies_module.spawn_enemy("perseguidor", enemy.x + offsetX, enemy.y + offsetY, enemy.waves_manager)
                 -- Opcional: minion nasce com vida reduzida
-                if minion then minion.lifes = 0.25 end
+                if minion then minion.lifes = 0.75 end
                 
                 -- Efeito visual
                 local part = require("part")
@@ -979,11 +979,7 @@ local function draw_boss_healthbar(enemy)
     end
     
     Utils.setColor(7)
-    local boss_name = string.upper(enemy.tipo)
     local hp_text = string.format("%d / %d", math.ceil(enemy.lifes), math.ceil(enemy.max_hp))
-    
-    local name_width = love.graphics.getFont():getWidth(boss_name)
-    love.graphics.print(boss_name, bar_x + (bar_width - name_width) / 2, bar_y - 12)
     
     local hp_width = love.graphics.getFont():getWidth(hp_text)
     love.graphics.print(hp_text, bar_x + (bar_width - hp_width) / 2, bar_y + 2)
