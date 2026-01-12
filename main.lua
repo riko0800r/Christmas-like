@@ -1231,7 +1231,7 @@ function love.touchpressed(id, x, y)
     end
     
     if is_menu then
-        Buttons:checkPress(virt_x, virt_y)
+        Buttons:mousepressed(x, y, 1)
     elseif GameState.current == "characters" then
         Characters.touchpressed(virt_x, virt_y)
     elseif GameState.current == "play" then
