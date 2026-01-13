@@ -332,7 +332,7 @@ local base_items = {
     },
     {
     id = "Estrelas Natalinas",
-        get_name = function() return "Chuva de Estrelas" end,
+        get_name = function() return Lang.text("item_star_name") end,
         get_desc = function() return Lang.text("item_star_desc") end,
         get_desc2 = function(p) 
             return Lang.text("item_star_stat", (p.item_levels["Estrelas Natalinas"] or 0), p.estrelas_count)

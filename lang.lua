@@ -103,7 +103,7 @@ local db = {
         ["char_atirador_desc"]="Começa com uma bola de neve\nbola de neve: tiro que segue inimigos",
         
         ["char_estrela_natalina"]="Presente Estrelado",
-        ["char_estrela_natalina_desc"]="Começa com Estrelas Natalinas\nescolhe inimigos Aleatoriamente e faz chuver estrelas neles.",
+        ["char_estrela_natalina_desc"]="Começa com Chuva estrelada\nescolhe inimigos Aleatoriamente e faz chuver estrelas neles.",
         -- ITENS / RECOMPENSAS
         ["reward_choose"] = "Escolha sua recompensa:",
         ["item_life"] = "Vida",
