@@ -204,10 +204,9 @@ Shaders.presets = {
     ice = function(self, enemy)
         -- Gelo agora tem Outline Ciano + Wave
         self:applyOutline(enemy, 0.0, 0.8, 1.0, 0.8, 1.0) 
-        self:applyWave(enemy, 0.025, 15.0, 0.0) -- Wave estática (congelado)
     end,
     boss = function(self, enemy)
-        self:applyChromaticAberration(0.004)
+        self:applyChromaticAberration(0.015)
         self:applyOutline(enemy, 0.5, 0.0, 0.5, 0.5, 2.0)
     end,
     poison = function(self, enemy)

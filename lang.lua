@@ -77,23 +77,23 @@ local db = {
         ["char_select_title"] = "ESCOLHA SEU PERSONAGEM",
         ["char_random"] = "Personagem Aleatorio",
         ["char_normal"] = "Rena Normal",
-        ["char_normal_desc"] = "inicia com bloco de gelo\nbloco de gelo: varios tiros em forma circular",
+        ["char_normal_desc"] = "Começa com bloco de gelo\nbloco de gelo: varios tiros em forma circular",
         ["char_vital"] = "Rena vital",
-        ["char_vital_desc"] = "inicia com Vitalidade\nVitalidade: ganha algumas vidas a cada alguns segundos",
+        ["char_vital_desc"] = "Começa com Vitalidade\nVitalidade: ganha algumas vidas a cada alguns segundos",
         ["char_poison"] = "Rena Venenosa",
-        ["char_poison_desc"] = "inicia com veneno mortal\nveneno mortal: dano a cada alguns segundo",
+        ["char_poison_desc"] = "Começa com veneno mortal\nveneno mortal: dano a cada alguns segundo",
         ["char_fire"] = "Rena de Fogo",
-        ["char_fire_desc"] = "inicia com fogo perigoso\nfogo perigoso: dano a cada alguns segundo",
+        ["char_fire_desc"] = "Começa com fogo perigoso\nfogo perigoso: dano a cada alguns segundo",
         ["char_ice"] = "Rena de Gelo",
-        ["char_ice_desc"] = "inicia com imobilizador\nImobilizador: deixa os inimigos mais lentos.",
+        ["char_ice_desc"] = "Começa com imobilizador\nImobilizador: deixa os inimigos mais lentos.",
         ["char_rock"] = "Rena de Pedra",
-        ["char_rock_desc"] = "inicia com pedras do céu\ncaem pedras do céu e dão 3X o seu dano, mas a mira é bem ruim.",
+        ["char_rock_desc"] = "Começa com pedras do céu\ncaem pedras do céu e dão 3X o seu dano, mas a mira é bem ruim.",
         ["char_lava"] = "Rena Dourada",
-        ["char_lava_desc"] = "inicia com Presente de ouro\nAnel ao redor da rena protegendo ela e atacando inimigos.",
+        ["char_lava_desc"] = "Começa com Presente de ouro\nAnel ao redor da rena protegendo ela e atacando inimigos.",
         ["char_gift"] = "Presente Precioso",
-        ["char_gift_desc"] = "inicia com Pedras preciosas\nJoga Muitas Pedras Preciosas para cima dando metade do seu dano",
+        ["char_gift_desc"] = "Começa com Pedras preciosas\nJoga Muitas Pedras Preciosas para cima dando metade do seu dano",
         ["char_mystery"] = "Rena Misteriosa",
-        ["char_mystery_desc"] = "começa com 2 itens aleatórios\npode ter combinações imprevisíveis!",
+        ["char_mystery_desc"] = "Começa com 2 itens aleatórios\npode ter combinações imprevisíveis!",
         ["char_tree"]="Árvore de natal",
         ["char_tree_desc"]="Começa com guirlanda de espinhos\nAura circular de dano ao redor de você.",
         ["char_gift2"]="Presente ruim",
@@ -101,6 +101,9 @@ local db = {
         
         ["char_atirador"]="Rena atiradora",
         ["char_atirador_desc"]="Começa com uma bola de neve\nbola de neve: tiro que segue inimigos",
+        
+        ["char_estrela_natalina"]="Presente Estrelado",
+        ["char_estrela_natalina_desc"]="Começa com Estrelas Natalinas\nescolhe inimigos Aleatoriamente e faz chuver estrelas neles.",
         -- ITENS / RECOMPENSAS
         ["reward_choose"] = "Escolha sua recompensa:",
         ["item_life"] = "Vida",
@@ -159,6 +162,9 @@ local db = {
         ["item_lifesteal_desc"] = "Chance de recuperar 2 de vida ao matar inimigos!",
         ["item_lifesteal_stat"] = "Nível %d | Chance: %.0f%% -> %.0f%%",
 
+        ["item_star_name"]="Chuva estrelada",
+        ["item_star_desc"]="Marca inimigos aleatórios e faz estrelas caírem neles após 2s!",
+        ["item_star_stat"] = "Nivel %d | Quantidade: %.1f",
         -- SINERGIAS
         ["synergy_ring_name"] = "Anel de renas",
         ["synergy_ring_desc"] = "Cria renas que atiram bolas de neve!",
@@ -278,6 +284,9 @@ local db = {
         ["char_atirador"]="Sniper Reindeer",
         ["char_atirador_desc"]="Starts with a snowball\nSnowball: a shot that follows enemies.",
 
+        ["char_estrela_natalina"]="starry gift",
+        ["char_estrela_natalina_desc"]="Starts with fallen stars\nMakes stars fall on random enemies!",
+
         -- ITENS / RECOMPENSAS
         ["reward_choose"] = "Choose your reward:",
         ["item_life"] = "Health",
@@ -330,6 +339,10 @@ local db = {
         ["item_boom"] = "Christmas Boomerang",
         ["item_boom_desc"] = "He goes and comes back to you, leaving gifts on his return.",
         ["item_boom_stat"] = "Lvl %d | Cooldown: %.1fs",
+        
+        ["item_star_name"]="fallen stars",
+        ["item_star_desc"]="Makes stars fall on random enemies!",
+        ["item_star_stat"] = "Lvl %d | Qty: %.1fs",
 
         -- SINERGIAS
         ["synergy_ring_name"] = "Reindeer Ring",

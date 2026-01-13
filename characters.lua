@@ -412,6 +412,39 @@ Characters.list = {
             p.sp = {64,64}
         end
     },
+    {
+        id = "estrela",
+        get_name = function() return Lang.text("char_estrela_natalina") end,
+        get_desc = function() 
+            local d = Lang.text("char_estrela_natalina_desc")
+            local lines = {}
+            for s in d:gmatch("[^\n]+") do table.insert(lines, s) end
+            return lines
+        end,
+        sprite_id = 13,
+        apply = function(p)
+            p.tipo_jogador = 13
+            p.demage = 1.0
+            p.estrelas_natalinas=true
+            p.estrelas_cooldown=2.5
+            p.estrelas_count=3
+            p.speed = 2.25
+            p.sp = {13,13}
+            p.item_levels = {
+                ["Bola de neve"] = 1,
+                ["Bloco de gelo"] = 0,
+                ["Pedras do ceu"] = 0,
+                ["Veneno mortal"] = 1,
+                ["Fogo perigoso"] = 0,
+                ["Imobilizador"] = 0,
+                ["Anel de Lava"] = 0,
+                ["Pedras Preciosas"] = 0,
+                ["Anel de renas"] = 0,
+                ["Pedras que seguem"] = 0,
+                ["Combo tóxico"] = 0,
+            }
+        end
+    },
 }
 
 function Characters.load(player)
@@ -419,7 +452,7 @@ function Characters.load(player)
     player.sprite_sheet=love.graphics.newImage("assets/spritePersonagens.png")
     Characters.image={}
     player.sprite={}
-    for i=0,11 do
+    for i=0,12 do
         Characters.image[i+1]=love.graphics.newQuad(i*8, 0, 8, 8, Characters.sprite_sheet:getDimensions())
         player.sprite[i+1]=love.graphics.newQuad(i*8, 0, 8, 8, player.sprite_sheet:getDimensions())
     end

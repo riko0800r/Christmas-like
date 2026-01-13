@@ -208,12 +208,13 @@ function Save.loadRun()
         -- Refresh sprites quads
          _G.player.sprite = {}
          local sheet = love.graphics.newImage("assets/spritePersonagens.png")
-         for i=0,11 do
+         for i=0,12 do
             _G.player.sprite[i+1] = love.graphics.newQuad(i*8, 0, 8, 8, sheet:getDimensions())
          end
     end
     
     -- Reset Enemies (Cleaner than saving them)
+    _G.player.pending_stars = {}
     Enemies.reset()
     Wave.spawn_wave() -- Spawn the current wave again
     

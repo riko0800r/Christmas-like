@@ -39,7 +39,7 @@ local base_items = {
             local next_val = current + 4
             return Lang.text("item_life_stat", (p.item_levels["Vida"] or 0), current, next_val)
         end, 
-        weight = 30,
+        weight = 25,
         icon=Vida,
     },
     {
@@ -53,7 +53,7 @@ local base_items = {
             local level = (p.item_levels["Força"] or 0)
             return Lang.text("item_str_stat", level, current, next_val)
         end, 
-        weight = 30,
+        weight = 25,
         icon=Forca,
     },
     {
@@ -67,7 +67,7 @@ local base_items = {
             local level = (p.item_levels["Rapidez"] or 0)
             return Lang.text("item_spd_stat", level, current, next_val)
         end, 
-        weight = 30,
+        weight = 25,
         icon=Rapidez,
     },
     {
@@ -76,7 +76,7 @@ local base_items = {
         effect = function(p) end, 
         get_desc = function() return Lang.text("item_new_desc") end, 
         get_desc2 = function(p) return Lang.text("item_new_stat") end,
-        weight = 45,
+        weight = 35,
         icon=NovosItens,
     },
     {
@@ -97,7 +97,7 @@ local base_items = {
             local level = (p.item_levels["Bola de neve"] or 0)
             return Lang.text("item_snow_stat", level, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        weight = 14,
+        weight = 20,
         icon=neve,
     },
     {
@@ -117,7 +117,7 @@ local base_items = {
             local level = (p.item_levels["Bloco de gelo"] or 0)
             return Lang.text("item_ice_stat", level, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        weight = 14,
+        weight = 20,
         icon=Gelo,
     },
     {
@@ -137,7 +137,7 @@ local base_items = {
             local level = (p.item_levels["Pedras do ceu"] or 0)
             return Lang.text("item_rock_stat", level, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        weight = 15,
+        weight = 20,
         icon=pedras,
     },
     {
@@ -157,7 +157,7 @@ local base_items = {
             local level = (p.item_levels["Veneno mortal"] or 0)
             return Lang.text("item_psn_stat", level, current_dmg, next_dmg, current_delay, next_delay)
         end, 
-        weight = 12,
+        weight = 10,
         icon=VenenoSprite,
     },
     {
@@ -177,7 +177,7 @@ local base_items = {
             local level = (p.item_levels["Fogo perigoso"] or 0)
             return Lang.text("item_fire_stat", level, current_dmg, next_dmg, current_delay, next_delay)
         end, 
-        weight = 12,
+        weight = 10,
         icon=Fogo,
     },
     {
@@ -238,7 +238,7 @@ local base_items = {
             local level = (p.item_levels["Anel de Lava"] or 0)
             return Lang.text("item_lava_stat", level, current_qty, next_qty, current_dmg, next_dmg)
         end, 
-        weight = 15,
+        weight = 20,
         icon=Lava,
     },
     {
@@ -261,7 +261,7 @@ local base_items = {
             local level = (p.item_levels["Pedras Preciosas"] or 0)
             return Lang.text("item_gem_stat", level, current_qty, next_qty, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        weight = 15,
+        weight = 20,
         icon=sombriosSprite,
     },
     {
@@ -295,7 +295,7 @@ local base_items = {
         get_desc2 = function(p) 
             return Lang.text("item_garlic_stat", (p.item_levels["Guirlanda"] or 0), p.guirlanda_raio, p.guirlanda_dano)
         end, 
-        weight = 15,
+        weight = 20,
         icon = love.graphics.newImage("assets/GuirlandaICON.png"),
     },
     {
@@ -310,7 +310,7 @@ local base_items = {
         get_desc2 = function(p) 
             return Lang.text("item_boom_stat", (p.item_levels["Bumerangue"] or 0), p.bumerangue_delay)
         end, 
-        weight = 15,
+        weight = 20,
         icon = love.graphics.newImage("assets/BumerangICON.png"),
     },
 {
@@ -330,6 +330,20 @@ local base_items = {
         weight = 0, -- Raridade (quanto menor, mais raro)
         icon = love.graphics.newImage("assets/VidaICON.png"), -- Reusando icone de vida
     },
+    {
+    id = "Estrelas Natalinas",
+        get_name = function() return "Chuva de Estrelas" end,
+        get_desc = function() return Lang.text("item_star_desc") end,
+        get_desc2 = function(p) 
+            return Lang.text("item_star_stat", (p.item_levels["Estrelas Natalinas"] or 0), p.estrelas_count)
+        end, 
+        icon = love.graphics.newImage("assets/EstrelaICON.png"),
+        effect = function(p)
+            p.estrelas_natalinas = true
+            p.estrelas_count = (p.estrelas_count or 0) + 1 -- Aumenta o número de estrelas por nível
+        end,
+        weight = 20, -- Raridade (quanto menor, mais raro)
+    }
 }
 
 function Rewards.generate(num_rewards)
@@ -404,12 +418,12 @@ function Rewards.draw()
     if math.random() < 0.1 then 
         for i = 1, math.random(1, 8) do
             addpart(math.random(0, love.graphics.getWidth()), -16, {
-                gravity = 0.75+math.random(0,1),
+                gravity = 0.75+math.random(0,2),
                 vy = math.random(20, 60),
-                vx = math.random(-20, 20),
+                vx = math.random(-25, 25),
                 image = presente,
                 size = math.random(8, 32),
-                life = math.random(1, 4)
+                life = math.random(1, 2.5)
             })
         end
     end

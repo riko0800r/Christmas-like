@@ -201,7 +201,7 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
 
     enemy.takeDamage = function(self, dmg)
         self.lifes = self.lifes - dmg
-        Camera:shake(0.2,0.75)
+        Camera:shake(0.2,0.8)
         local randomPitch = love.math.random() * 0.4 + 0.8
         SFX_Enemy_Morte:setPitch(randomPitch)
         SFX_Enemy_Morte:play()

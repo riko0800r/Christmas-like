@@ -9,7 +9,7 @@ Waves.boss_alive = false
 Waves.score = 0
 Waves.active = false
 Waves.infinito = false
-Waves.wave_final = 16 -- <<< OBJETIVO DE VITÓRIA DEFINIDO AQUI
+Waves.wave_final = 16
 
 -- Tipos possíveis de inimigos normais
 local enemy_types = {
@@ -63,6 +63,7 @@ function Waves.update(dt, player)
     if num_enemies == 0 and not Waves.waiting_next then
         Waves.waiting_next = true
         Waves.timer = 0
+        _G.SFX_Pickup_Heart:play()
 
         if player and player.onWaveEnd then player:onWaveEnd() end
 
@@ -143,8 +144,7 @@ function Waves.spawn_wave()
     -- No modo infinito, a dificuldade aumenta infinitamente
     local quantidade
     if Waves.infinito then
-        -- Escala exponencial suave no modo infinito
-        quantidade = math.floor(1 + Waves.current_wave * 1.5 + (Waves.current_wave / 10) ^ 1.5)
+        quantidade = math.floor(1 + Waves.current_wave * 1.25 + (Waves.current_wave / 10) ^ 1.5)
     else
         quantidade = math.floor(1 + Waves.current_wave * 1.25)
     end
@@ -160,21 +160,11 @@ function Waves.spawn_wave()
         available_enemies = enemy_types
     end
 
-   --[[ -- Lógica de Spawn
-    if game_mode == 5 then -- Modo Loucura (todos os inimigos da wave são iguais)
-        local tipo_da_onda = available_enemies[math.random(#available_enemies)]
-        print("Onda da Loucura! Tipo: " .. tipo_da_onda)
-        for i = 1, quantidade do
-            local x = math.random(8, 504)
-            local y = math.random(24, 32)
-            enemies_module.spawn_enemy(tipo_da_onda, x, y, Waves)
-        end
-    --]]
     -- Lógica para os outros modos (Fácil, Normal, Difícil)
     for i = 1, quantidade do
         local tipo = available_enemies[math.random(#available_enemies)]
         local x = math.random(8, 504)
-        local y = math.random(24, 32)
+        local y = math.random(8, 32)
         enemies_module.spawn_enemy(tipo, x, y, Waves)
     end
 end

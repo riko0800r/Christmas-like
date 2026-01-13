@@ -9,7 +9,7 @@ function Particles.spawn(x, y, options)
         y = y or 0,
         vx = opts.vx or 0,
         vy = opts.vy or math.random(40, 120),
-        size = opts.size or math.random(8, 16),
+        size = opts.size or math.random(8, 24),
         life = opts.life or 2,
         alpha = 1,
         image = opts.image or nil,
@@ -30,6 +30,7 @@ function Particles.update(dt)
             p.y = p.y + p.vy * dt
             p.vy = p.vy + p.gravity * dt
             p.alpha = p.life / 2  -- fade
+            p.size = math.min(32,p.size-0.025)
         end
     end
 end

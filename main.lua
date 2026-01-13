@@ -22,7 +22,7 @@ local Lang = require('lang')
 local Shaders=require("shaders")
 local Save=require("save")
 
--- 2. VARIÁVEIS GLOIAIS DO JOGO
+-- 2. VARIÁVEIS GLOBAIS DO JOGO
 -- -------------------------------------------------------------
 score = 0
 best_run = 0
@@ -399,10 +399,10 @@ function setupButtonsForState(state)
                 -- Coluna 2 (Direita) - Vai para o outro lado
                 x = 300 
                 -- O (i-8) faz com que o item 9 fique na posição do 1, o 10 na do 2, etc.
-                y = 24 + ((i - 8) * 24) 
+                y = 24 + ((i - 8) * 24)
             end
 
-            Buttons:newButton(x, y, 128, 22, char.get_name(), function()
+            Buttons:newButton(x, y, 128+32, 22, char.get_name(), function()
                 Characters.selected_index = i
                 Characters.keypressed("x")
                 game_timer=0
@@ -656,9 +656,8 @@ function love.update(dt)
                 player.dx, player.dy = 0, 0
             end
         end
-
-        player:update(dt, Enemies.get_all(), Waves.wave_delay)
         Enemies.update(dt, player)
+        player:update(dt, Enemies.get_all(), Waves.wave_delay)
         Waves.update(dt, player) 
         
         if #Enemies.get_all() == 0 and Waves.waiting_next == true then
@@ -1231,7 +1230,7 @@ function love.touchpressed(id, x, y)
     end
     
     if is_menu then
-        Buttons:mousepressed(x, y, 1)
+        Buttons:mousepressed(virt_x, virt_y, 0)
     elseif GameState.current == "characters" then
         Characters.touchpressed(virt_x, virt_y)
     elseif GameState.current == "play" then

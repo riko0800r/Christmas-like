@@ -1,7 +1,9 @@
-local Utils  = require('utils')
-local Waves  = require("wave")
-local Camera = require("camera")
-local Shaders= require("shaders")
+local Utils   = require('utils')
+local Waves   = require("wave")
+local Camera  = require("camera")
+local Shaders = require("shaders")
+local Part    = require("part_rewards")
+local Enemy = require("enemies")
 
 local Player = {}
 Player.__index = Player
@@ -101,6 +103,12 @@ function Player.new()
     self.Raios={}
     self.Raio_life=2.5
 
+    self.estrelas_natalinas = true
+    self.estrelas_timer = 0
+    self.estrelas_cooldown = 4 -- Tempo entre as chuvas
+    self.estrelas_count = 2
+    self.pending_stars = {} -- Tabela para controlar quem vai ser atingido
+
     -- SISTEMA DE NÍVEIS DE ITENS
     self.item_levels = {
         ["Bola de neve"] = 0,
@@ -112,6 +120,7 @@ function Player.new()
         ["Anel de Lava"] = 0,
         ["Pedras Preciosas"] = 0,
         ["Raios de luz"] = 0,
+        ["Estrelas Natalinas"]=0,
     }
 
     -- SINERGIA 1: ANEL DE RENAS
@@ -340,6 +349,56 @@ function Player:update(dt, enemies, time)
         end
     end
     
+    if self.estrelas_natalinas then
+        self.estrelas_timer = self.estrelas_timer - dt
+        
+        -- 1. MOMENTO DA MIRA: Escolhe os inimigos
+        if self.estrelas_timer <= 0 then
+            local inimigos = Enemy.get_all() -- Certifique-se que enemies.lua exporta a lista
+            if #inimigos > 0 then
+                for i = 1, self.estrelas_count do
+                    local alvo = inimigos[math.random(1, #inimigos)]
+                    table.insert(self.pending_stars, {
+                        enemy = alvo,
+                        timer = 2, -- 2 segundos para cair
+                        hit = false
+                    })
+                end
+            end
+            self.estrelas_timer = self.estrelas_cooldown
+        end
+
+        -- 2. ATUALIZAR ESTRELAS PENDENTES
+        for i = #self.pending_stars, 1, -1 do
+            local s = self.pending_stars[i]
+            s.timer = s.timer - dt
+            
+            -- Se o inimigo morreu antes da estrela cair, removemos a mira
+            if s.enemy.lifes <= 0 then 
+                table.remove(self.pending_stars, i)
+            end
+            if s.timer <= 0 then
+                -- 3. MOMENTO DO IMPACTO
+                local dmg = self.demage
+                self:recordDamage("Estrelas Natalinas", dmg)
+                s.enemy.takeDamage(s.enemy,dmg)
+                if self.veneno then s.enemy.veneno = true end
+                if self.fogo then s.enemy.fogo = true end
+                if self.gelo then s.enemy.gelo = true end
+                -- Efeito de explosão e rastro (usando seu sistema de Part)
+                for j=1, 10 do
+                    Part.spawn(s.enemy.x, s.enemy.y, {
+                        vx = math.random(-50, 50),
+                        vy = math.random(-50, 50),
+                        life = 0.5,
+                        color = {1, 1, 0.5} 
+                    })
+                end
+                table.remove(self.pending_stars, i)
+            end
+        end
+    end
+
     if self.invul <= 0 then
         self:checkPlayerCollision(enemies)
     end
@@ -1108,6 +1167,31 @@ function Player:draw()
         love.graphics.rectangle("fill",p.x,p.y,p.width,p.height)
     end
 
+    if self.estrelas_natalinas then
+        for _, s in ipairs(self.pending_stars) do
+            -- Desenha um círculo de aviso ou mira no inimigo
+            love.graphics.setLineWidth(2)
+            Utils.setColor(10)
+            
+            -- Círculo que vai fechando conforme o tempo acaba
+            love.graphics.circle("line", s.enemy.x, s.enemy.y, 10 + (s.timer * 20))
+            
+            -- EFEITO DE RASTRO: Se faltar menos de 0.5s, desenha a estrela caindo rápido
+            if s.timer < 0.5 then
+                local progresso = (0.5 - s.timer) / 0.5 -- Vai de 0 a 1
+                local startY = s.enemy.y - 300
+                local currentY = startY + (300 * progresso)
+                
+                -- Desenha o rastro (uma linha brilhante)
+                love.graphics.setLineWidth(4)
+                love.graphics.line(s.enemy.x, startY, s.enemy.x, currentY)
+                
+                -- Desenha a cabeça da estrela
+                love.graphics.circle("fill", s.enemy.x, currentY, 5)
+            end
+        end
+    end
+
     -- Desenha o player
     if self.invul <= 0 or math.floor(self.invul * 10) % 2 == 0 then
         Utils.setColor(7)
@@ -1193,6 +1277,7 @@ function Player:draw()
         -- Reset de cor
         love.graphics.setColor(1, 1, 1, 1)
     end
+    Part.draw()
 end
 
 return Player
