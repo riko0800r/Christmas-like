@@ -420,9 +420,9 @@ function Rewards.draw()
             addpart(math.random(0, love.graphics.getWidth()), -16, {
                 gravity = 0.75+math.random(0,2),
                 vy = math.random(20, 60),
-                vx = math.random(-25, 25),
+                vx = math.random(-1,1),
                 image = presente,
-                size = math.random(8, 32),
+                size = math.random(12, 32),
                 life = math.random(1, 2.5)
             })
         end

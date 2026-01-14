@@ -12,6 +12,8 @@ local function dist(x1, y1, x2, y2)
     return math.sqrt((x2 - x1)^2 + (y2 - y1)^2)
 end
 
+local Estrelas_ICON = love.graphics.newImage("assets/EstrelaICON.png")
+
 SFX_dano=love.audio.newSource("assets/dano.wav","static")
 SFX_raio=love.audio.newSource("assets/Raio.wav","static")
 local Lava=love.graphics.newImage("assets/Lava.png")
@@ -103,9 +105,9 @@ function Player.new()
     self.Raios={}
     self.Raio_life=2.5
 
-    self.estrelas_natalinas = true
+    self.estrelas_natalinas = false
     self.estrelas_timer = 0
-    self.estrelas_cooldown = 4 -- Tempo entre as chuvas
+    self.estrelas_cooldown=2.5
     self.estrelas_count = 2
     self.pending_stars = {} -- Tabela para controlar quem vai ser atingido
 
@@ -360,7 +362,7 @@ function Player:update(dt, enemies, time)
                     local alvo = inimigos[math.random(1, #inimigos)]
                     table.insert(self.pending_stars, {
                         enemy = alvo,
-                        timer = 2, -- 2 segundos para cair
+                        timer = 1.125, -- 1.125 segundos para cair
                         hit = false
                     })
                 end
@@ -386,12 +388,16 @@ function Player:update(dt, enemies, time)
                 if self.fogo then s.enemy.fogo = true end
                 if self.gelo then s.enemy.gelo = true end
                 -- Efeito de explosão e rastro (usando seu sistema de Part)
-                for j=1, 10 do
+                for j=1, 2 do
                     Part.spawn(s.enemy.x, s.enemy.y, {
-                        vx = math.random(-50, 50),
-                        vy = math.random(-50, 50),
-                        life = 0.5,
-                        color = {1, 1, 0.5} 
+                        vx = (math.random(-192,192)),
+                        vy = (math.random(-64,8)),
+                        life  = 1.25,
+                        alpha = 0.85,
+                        color = {1, 1, 1},
+                        image = Estrelas_ICON,
+                        gravity=64,
+                        size = math.random(16,32),
                     })
                 end
                 table.remove(self.pending_stars, i)
@@ -1170,8 +1176,8 @@ function Player:draw()
     if self.estrelas_natalinas then
         for _, s in ipairs(self.pending_stars) do
             -- Desenha um círculo de aviso ou mira no inimigo
-            love.graphics.setLineWidth(2)
-            Utils.setColor(10)
+            love.graphics.setLineWidth(1)
+            Utils.setColor(9)
             
             -- Círculo que vai fechando conforme o tempo acaba
             love.graphics.circle("line", s.enemy.x, s.enemy.y, 10 + (s.timer * 20))
@@ -1188,6 +1194,7 @@ function Player:draw()
                 
                 -- Desenha a cabeça da estrela
                 love.graphics.circle("fill", s.enemy.x, currentY, 5)
+                love.graphics.setLineWidth(1)
             end
         end
     end

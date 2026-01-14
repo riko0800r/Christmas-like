@@ -15,7 +15,13 @@ function Particles.spawn(x, y, options)
         image = opts.image or nil,
         shape = opts.shape or "circle",
         color = opts.color or {1, 1, 1},
-        gravity = opts.gravity or 0.1
+        gravity = opts.gravity or 0.1,
+        rot     = opts.rotation or 0,
+        rot_spd = opts.rotation_speed or 0,
+        do_thing=opts.func or function (p)
+            p.alpha = p.life / 2  -- fade
+            p.size = math.min(32,p.size-0.025)
+        end,
     }
     table.insert(Particles.list, p)
 end
@@ -27,10 +33,11 @@ function Particles.update(dt)
         if p.life <= 0 then
             table.remove(Particles.list, i)
         else
-            p.y = p.y + p.vy * dt
-            p.vy = p.vy + p.gravity * dt
-            p.alpha = p.life / 2  -- fade
-            p.size = math.min(32,p.size-0.025)
+            p.y   = p.y + p.vy * dt
+            p.x   = p.x + p.vx * dt
+            p.vy  = p.vy + p.gravity * dt
+            p.rot = p.rot + p.rot_spd
+            p.do_thing(p)
         end
     end
 end
@@ -40,7 +47,7 @@ function Particles.draw()
         love.graphics.setColor(p.color[1], p.color[2], p.color[3], p.alpha)
         if p.image then
             local w, h = p.image:getDimensions()
-            love.graphics.draw(p.image, p.x, p.y, 0, p.size / w, p.size / h)
+            love.graphics.draw(p.image, p.x, p.y, p.rot, p.size / w, p.size / h)
         else
             if p.shape == "circle" then
                 love.graphics.circle("fill", p.x, p.y, p.size / 2)
