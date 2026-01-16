@@ -13,10 +13,15 @@ SFX_Pickup_Heart:setVolume(0.25)
 
 SFX_Enemy_Morte:setVolume(0.1)
 
+SFX_Pickup_Coin=love.audio.newSource("assets/Coin.wav","static")
+
+SFX_Pickup_Coin:setVolume(0.25)
+
 love.graphics.setDefaultFilter("nearest", "nearest")
 
 local enemies = {}
 local hearts = {} -- Lista de corações no chão
+local coins = {} -- Lista de moedas no chão
 local sprite_sheets = {}
 local pi = math.pi
 local sqrt = math.sqrt
@@ -26,6 +31,7 @@ local addpart = part.add
 local table_insert = table.insert
 local table_remove = table.remove
 local clamp=Utils.clamp
+local golden_spawn_timer = 0
 
 local presente=love.graphics.newImage("assets/Presente.png")
 -- Carrega a imagem do coração
@@ -126,6 +132,17 @@ local EnemyPresets = {
         demage_scale=0, 
         sprite=1,
     },
+    renas_especial = {
+        demage_preset=1,
+        speed_base = 1.75, -- Muito rápida
+        speed_scale = 1/16, 
+        hp_base = 6.5, 
+        hp_scale = 1/4, 
+        demage_scale=0, 
+        sprite=1, -- Reusa sprite 1, vamos pintar de dourado no draw
+        ai_type = "flee", -- Nova IA de fugir
+        is_golden = true,
+    },
 }
 
 function enemies_module.load_assets()
@@ -181,13 +198,18 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     for k, v in pairs(preset) do
         enemy[k] = v
     end
-    
+
     enemy.image = sprite_sheets[preset.sprite]
 
     enemy.speed = preset.speed_base + Waves.current_wave * preset.speed_scale
     enemy.lifes = preset.hp_base + Waves.current_wave * preset.hp_scale
     enemy.demage = (preset.demage_preset or 1) + Waves.current_wave * preset.demage_scale
     enemy.max_hp = enemy.lifes
+
+    if player.relics and player.relics["Greed"] then
+        enemy.max_hp=enemy.max_hp*2
+        enemy.lifes=enemy.lifes*2
+    end
     
     enemy.speed = clamp(0.15, enemy.speed, MAX_ENEMY_SPEED)
     
@@ -216,6 +238,12 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     if tipo == "divisor" then
         enemy.w=24
         enemy.h=24
+    end
+    
+    if preset.is_golden then
+        enemy.is_golden = preset.is_golden 
+    else
+        enemy.is_golden = false
     end
 
     table_insert(enemies, enemy)
@@ -272,6 +300,31 @@ local function update_bomb(enemy, player, dt)
         addpart(enemy.x, enemy.y, 10, 8)
         addpart(enemy.x, enemy.y, 30, 9)
         enemy.dead = true
+    end
+end
+
+local function update_flee(enemy, player, dt)
+    local dx, dy = enemy.x - player.x, enemy.y - player.y -- Vetor oposto ao player
+    local mag = math.sqrt(dx^2 + dy^2)
+    
+    -- Se estiver muito perto das bordas, tenta voltar pro meio
+    if enemy.x < 32 then dx = 1 end
+    if enemy.x > (128*4)-32 then dx = -1 end
+    if enemy.y < 32 then dy = 1 end
+    if enemy.y > (128*2)-32 then dy = -1 end
+
+    if mag > 0 then
+        -- Normaliza e aplica velocidade
+        enemy.dx = (dx/mag) * enemy.speed
+        enemy.dy = (dy/mag) * enemy.speed
+        
+        enemy.x = enemy.x + enemy.dx * dt * 60
+        enemy.y = enemy.y + enemy.dy * dt * 60
+    end
+    
+    -- Partículas de rastro dourado
+    if math.random() < 0.1 then
+        part.add(enemy.x, enemy.y, 6, 9) -- Amarelo/Laranja
     end
 end
 
@@ -678,6 +731,7 @@ local update_functions = {
     divisor = function(e, p, dt) update_chaser(e, p, dt, e.accel_mult) end,
     paladino = update_paladino,
     invocador = update_invocador,
+    renas_especial = update_flee,
 }
 
 
@@ -756,10 +810,9 @@ local function draw_enemy(enemy)
         end
         
         Utils.setColor(7)
-        -- 4. Ativa o shader e desenha
         Shaders:use()
         
-        Utils.setColor(7)
+        if enemy.is_golden then Utils.setColor(10) else Utils.setColor(7) end -- 10 é amarelo na paleta pico-8
         love.graphics.draw(
             enemy.image, 
             enemy.x, 
@@ -899,15 +952,104 @@ function enemies_module.draw_hearts()
     end
 end
 
+-- ============ moedas ===============
+
+function enemies_module.spawn_coin(x, y, value)
+    table.insert(coins, {
+        x = x,
+        y = y,
+        value = value,
+        w = 8, h = 8,
+        timer = 0,
+        pulse = math.random() * 6
+    })
+end
+
+function enemies_module.update_coins(dt, player)
+    for i = #coins, 1, -1 do
+        local c = coins[i]
+        c.pulse = c.pulse + dt * 4
+        c.y = c.y + math.sin(c.pulse) * 0.1 -- Flutuação leve
+
+        -- Ímã de dinheiro (se tiver relíquia ou padrão)
+        local magnet_range = 32
+        if player.relics and player.relics["Coin Magnet"] then magnet_range = 128 end
+        
+        local dist_p = math.sqrt((c.x - player.x)^2 + (c.y - player.y)^2)
+        
+        -- Atrai para o player se estiver perto
+        if dist_p < magnet_range then
+            c.x = c.x + (player.x - c.x) * 5 * dt
+            c.y = c.y + (player.y - c.y) * 5 * dt
+        end
+
+        -- Coleta
+        if Utils.col(c, player) then
+            player.money = (player.money or 0) + c.value
+            SFX_Pickup_Coin:play()
+            table.remove(coins, i)
+        end
+    end
+end
+
+function enemies_module.draw_coins()
+    for _, c in ipairs(coins) do
+        -- Desenha moeda (Círculo amarelo com borda laranja)
+        local scale = (c.value >= 100) and 1.5 or 1.0
+        
+        love.graphics.setColor(1, 0.8, 0, 1) -- Ouro
+        love.graphics.circle("fill", c.x + 4, c.y + 4, 3 * scale)
+        
+        love.graphics.setColor(1, 0.5, 0, 1) -- Borda Laranja
+        love.graphics.setLineWidth(1)
+        love.graphics.circle("line", c.x + 4, c.y + 4, 3 * scale)
+        
+        Utils.setColor(7) -- Reset
+    end
+end
+
 -- ================================================================
 
 function enemies_module.update(dt, player)
     Shaders:update(dt)
+    
+    golden_spawn_timer = golden_spawn_timer + dt
+    if golden_spawn_timer >= 2.0 then -- A cada 1 segundo
+        golden_spawn_timer = 0
+        if math.random() <= 0.025 then -- 2.5% de chance
+            local x = math.random(32, 128*4 - 32)
+            local y = math.random(32, 128*2 - 32)
+            local e = enemies_module.spawn_enemy("renas_especial", x, y, player.waves_manager or require("wave"))
+            if e then 
+                print("🌟 RENA DOURADA SPAWNOU!")
+                part.add(x, y, 25, 10) -- Explosão visual de spawn
+            end
+        end
+    end
+
     for i = #enemies, 1, -1 do
         local e = enemies[i]
         enemies_module.update_enemy(e, player, dt)
         Shaders:updateEnemyFlash(e, dt)
-        if e.dead then
+        if e.dead then       
+            if e.is_golden then
+                -- Drop garantido de 100
+                enemies_module.spawn_coin(e.x, e.y, 25)
+                part.add(e.x, e.y, 20, 8) -- Partículas douradas
+            else
+                -- Chance normal de drop (ex: 20% de dropar 10)
+                -- Se tiver relíquia "Greed", dropa mais
+                local chance = 0.2
+                local val = 5
+                if player.relics and player.relics["Greed"] then 
+                    chance = 0.3
+                    val = 10
+                end
+                
+                if math.random() < chance then
+                    enemies_module.spawn_coin(e.x, e.y, val)
+                end
+            end
             if player.lifesteal_chance > 0 and player.lifes < player.max_life then
                 if math.random() < player.lifesteal_chance then
                     player.lifes = math.min(player.max_life, player.lifes + 1)
@@ -934,6 +1076,7 @@ function enemies_module.update(dt, player)
     end
     
     enemies_module.update_hearts(dt, player) -- Atualiza corações
+    enemies_module.update_coins(dt, player)
     
     resolve_enemy_collisions()
 end
@@ -987,7 +1130,8 @@ end
 
 function enemies_module.draw()
     enemies_module.draw_hearts() -- Desenha os corações no chão
-    
+    enemies_module.draw_coins()
+
     for _, enemy in ipairs(enemies) do
         draw_enemy(enemy)
     end
@@ -1001,7 +1145,8 @@ end
 
 function enemies_module.reset()
     enemies = {}
-    hearts = {} -- Limpa corações ao resetar
+    hearts  = {} -- Limpa corações ao resetar
+    coins   = {}
 end
 
 function enemies_module.launch_chasing_bullet(enemy)
@@ -1016,6 +1161,20 @@ end
 
 function enemies_module.get_all()
     return enemies
+end
+
+function enemies_module.damageAll(amount)
+    for _, enemy in ipairs(enemies) do
+        enemy.lifes = enemy.lifes - amount
+        if enemy.flash_timer then enemy.flash_timer = 0.15 end
+        if SFX_Enemy_Morte then SFX_Enemy_Morte:play() end
+    end
+end
+
+function enemies_module.healAll(amount)
+    for _, enemy in ipairs(enemies) do
+        enemy.lifes = math.min(enemy.lifes + amount, enemy.max_hp)
+    end
 end
 
 return enemies_module

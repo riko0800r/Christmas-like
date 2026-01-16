@@ -7,6 +7,9 @@ local Lang    = require('lang') -- <<<
 local addpart = part.spawn
 
 local Rewards = {}
+Rewards.slots = {}
+Rewards.reroll_cost = 10
+Rewards.free_claimed = false
 Rewards.selected_index = 1
 Rewards.current_rewards = {}
 
@@ -26,9 +29,7 @@ local Imobilizador=love.graphics.newImage("assets/ImobilizadorICON.png")
 local NovosItens=love.graphics.newImage("assets/NovosItensICON.png")
 local LifestealIcon = love.graphics.newImage("assets/VidaICON.png") -- Use o ícone de vida
 
--- NOTA: Os 'id' abaixo são usados como chaves no player.item_levels
--- Mantenha-os iguais aos originais (em PT) para não quebrar lógica
-local base_items = {
+local upgrades = {
     {
         id = "Vida",
         get_name = function() return Lang.text("item_life") end, 
@@ -38,7 +39,8 @@ local base_items = {
             local current = p.max_life
             local next_val = current + 4
             return Lang.text("item_life_stat", (p.item_levels["Vida"] or 0), current, next_val)
-        end, 
+        end,
+        price=5,
         weight = 25,
         icon=Vida,
     },
@@ -53,6 +55,8 @@ local base_items = {
             local level = (p.item_levels["Força"] or 0)
             return Lang.text("item_str_stat", level, current, next_val)
         end, 
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 25,
         icon=Forca,
     },
@@ -67,17 +71,10 @@ local base_items = {
             local level = (p.item_levels["Rapidez"] or 0)
             return Lang.text("item_spd_stat", level, current, next_val)
         end, 
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 25,
         icon=Rapidez,
-    },
-    {
-        id = "Novos itens", 
-        get_name = function() return Lang.text("item_new") end,
-        effect = function(p) end, 
-        get_desc = function() return Lang.text("item_new_desc") end, 
-        get_desc2 = function(p) return Lang.text("item_new_stat") end,
-        weight = 35,
-        icon=NovosItens,
     },
     {
         id = "Bola de neve", 
@@ -97,6 +94,8 @@ local base_items = {
             local level = (p.item_levels["Bola de neve"] or 0)
             return Lang.text("item_snow_stat", level, current_dmg, next_dmg, current_cd, next_cd)
         end, 
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon=neve,
     },
@@ -116,7 +115,9 @@ local base_items = {
             local next_cd = math.max(1.3, current_cd - 0.15)
             local level = (p.item_levels["Bloco de gelo"] or 0)
             return Lang.text("item_ice_stat", level, current_dmg, next_dmg, current_cd, next_cd)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon=Gelo,
     },
@@ -137,6 +138,8 @@ local base_items = {
             local level = (p.item_levels["Pedras do ceu"] or 0)
             return Lang.text("item_rock_stat", level, current_dmg, next_dmg, current_cd, next_cd)
         end, 
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon=pedras,
     },
@@ -157,6 +160,7 @@ local base_items = {
             local level = (p.item_levels["Veneno mortal"] or 0)
             return Lang.text("item_psn_stat", level, current_dmg, next_dmg, current_delay, next_delay)
         end, 
+        price=5,
         weight = 10,
         icon=VenenoSprite,
     },
@@ -176,7 +180,9 @@ local base_items = {
             local next_delay = math.max(0.66, current_delay - 0.04)
             local level = (p.item_levels["Fogo perigoso"] or 0)
             return Lang.text("item_fire_stat", level, current_dmg, next_dmg, current_delay, next_delay)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 10,
         icon=Fogo,
     },
@@ -197,7 +203,9 @@ local base_items = {
             local next_delay = math.max(0.5, current_delay - 0.04)
             local level = (p.item_levels["Imobilizador"] or 0)
             return Lang.text("item_frz_stat", level, current_slow, next_slow, current_delay, next_delay)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 10,
         icon=Imobilizador,
     },
@@ -216,7 +224,9 @@ local base_items = {
             local level = (p.item_levels["Vitalidade"] or 0)
             -- Atualizado para usar a nova string de stats
             return Lang.text("item_vit_stat", level, current_heal, next_heal)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 10,
         icon=Vitalidade,
     },
@@ -237,7 +247,9 @@ local base_items = {
             local next_qty = current_qty + 1
             local level = (p.item_levels["Anel de Lava"] or 0)
             return Lang.text("item_lava_stat", level, current_qty, next_qty, current_dmg, next_dmg)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon=Lava,
     },
@@ -260,7 +272,9 @@ local base_items = {
             local next_cd = math.max(0.5, current_cd - 0.2)
             local level = (p.item_levels["Pedras Preciosas"] or 0)
             return Lang.text("item_gem_stat", level, current_qty, next_qty, current_dmg, next_dmg, current_cd, next_cd)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon=sombriosSprite,
     },
@@ -280,7 +294,9 @@ local base_items = {
             local next_cd = math.max(0.5, current_cd - 0.2)
             local level = (p.item_levels["Espada triângular"] or 0)
             return Lang.text("item_sword_stat", level, current_dmg, next_dmg, current_cd, next_cd)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 0
     },
     {
@@ -294,7 +310,9 @@ local base_items = {
         get_desc = function() return Lang.text("item_garlic_desc") end, 
         get_desc2 = function(p) 
             return Lang.text("item_garlic_stat", (p.item_levels["Guirlanda"] or 0), p.guirlanda_raio, p.guirlanda_dano)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon = love.graphics.newImage("assets/GuirlandaICON.png"),
     },
@@ -309,7 +327,9 @@ local base_items = {
         get_desc = function() return Lang.text("item_boom_desc") end, 
         get_desc2 = function(p) 
             return Lang.text("item_boom_stat", (p.item_levels["Bumerangue"] or 0), p.bumerangue_delay)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20,
         icon = love.graphics.newImage("assets/BumerangICON.png"),
     },
@@ -326,7 +346,9 @@ local base_items = {
             local next_val = current + 15
             local level = (p.item_levels["Drenagem Natalina"] or 0)
             return Lang.text("item_lifesteal_stat", level, current, next_val)
-        end, 
+        end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 0, -- Raridade (quanto menor, mais raro)
         icon = love.graphics.newImage("assets/VidaICON.png"), -- Reusando icone de vida
     },
@@ -336,41 +358,99 @@ local base_items = {
         get_desc = function() return Lang.text("item_star_desc") end,
         get_desc2 = function(p) 
             return Lang.text("item_star_stat", (p.item_levels["Estrelas Natalinas"] or 0), p.estrelas_count)
-        end, 
-        icon = love.graphics.newImage("assets/EstrelaICON.png"),
+        end,
         effect = function(p)
             p.estrelas_natalinas = true
             p.estrelas_count = (p.estrelas_count or 0) + 1 -- Aumenta o número de estrelas por nível
         end,
+        price = 5, -- Grátis se aparecer no slot grátis
+        type = "upgrade",
         weight = 20, -- Raridade (quanto menor, mais raro)
+        icon = love.graphics.newImage("assets/EstrelaICON.png"),
     }
 }
 
-function Rewards.generate(num_rewards)
-    Rewards.current_rewards = {}
-    Rewards.selected_index = 1
-    
-    local available_rewards = {}
-    for _, item in ipairs(base_items) do 
-        table.insert(available_rewards, {reward = item, weight = item.weight}) 
-    end
+local shop_items = {
+    {
+        id = "Greed",
+        get_name = function() return Lang.text("relic_greed") end,
+        get_desc = function() return Lang.text("relic_greed_desc") end,
+        effect = function(p) p.relics["Greed"] = true end,
+        price = 120,
+        type = "relic",
+        weight = 10,
+        icon = love.graphics.newImage("assets/CoinICON.png")
+    },
+    {
+        id = "Coin magnet",
+        get_name = function() return Lang.text("relic_coin_magnet") end,
+        get_desc = function() return Lang.text("relic_coin_magnet_desc") end,
+        effect = function(p) p.relics["Coin Magnet"] = true end,
+        price = 100,
+        type = "relic",
+        weight = 10,
+        icon = love.graphics.newImage("assets/ImãICON.png")
+    },
 
-    for i = 1, num_rewards do
-        if #available_rewards == 0 then break end
-        local total_weight = 0
-        for _, item in ipairs(available_rewards) do 
-            total_weight = total_weight + item.weight 
-        end
-        local choice = math.random() * total_weight
-        for index, item in ipairs(available_rewards) do
-            choice = choice - item.weight
-            if choice <= 0 then
-                table.insert(Rewards.current_rewards, item.reward)
-                table.remove(available_rewards, index)
+}
+
+local function pickRandomUnique(pool, count)
+    local results = {}
+    local temp_pool = {}
+    for _, v in ipairs(pool) do table.insert(temp_pool, v) end
+
+    for i = 1, count do
+        if #temp_pool == 0 then break end
+        
+        local total_w = 0
+        for _, item in ipairs(temp_pool) do total_w = total_w + item.weight end
+        
+        local r = math.random() * total_w
+        for j, item in ipairs(temp_pool) do
+            r = r - item.weight
+            if r <= 0 then
+                table.insert(results, table.remove(temp_pool, j))
                 break
             end
         end
     end
+    return results
+end
+
+function Rewards.generate()
+    Rewards.slots = {}
+    -- Pega 3 de cada pool e coloca na mesma linha
+    local items_a = pickRandomUnique(upgrades, 3)
+    local items_b = pickRandomUnique(shop_items, 2)
+    
+    for _, it in ipairs(items_a) do table.insert(Rewards.slots, { item = it, bought = false }) end
+    for _, it in ipairs(items_b) do table.insert(Rewards.slots, { item = it, bought = false }) end
+end
+
+function Rewards.reroll()
+    if player.money >= Rewards.reroll_cost then
+        player.money = player.money - Rewards.reroll_cost
+        Rewards.reroll_cost = Rewards.reroll_cost + 5
+        Rewards.generate()
+        _G.setupButtonsForState("rewards")
+    end
+end
+
+function Rewards.buy(index)
+    local slot = Rewards.slots[index]
+    if not slot or slot.bought then return end
+
+    if player.money >= slot.item.price then
+        player.money = player.money - slot.item.price
+        slot.item.effect(player)
+        slot.bought = true
+        
+        -- Se for um upgrade, aumenta o nível no registro
+        if slot.item.price == 5 then
+            player.item_levels[slot.item.id] = (player.item_levels[slot.item.id] or 0) + 1
+        end
+    end
+    _G.setupButtonsForState("rewards")
 end
 
 function Rewards:selectReward()
@@ -404,12 +484,14 @@ function Rewards:selectReward()
     _G.switchState("play")
 end
 
--- Nova função auxiliar para obter ícone por nome
 function Rewards.get_icon_by_name(name)
-    for _, item in ipairs(base_items) do
-        if item.id == name then
-            return item.icon
-        end
+    -- Procura em upgrades
+    for _, item in ipairs(upgrades) do
+        if item.id == name then return item.icon end
+    end
+    -- Procura em shop
+    for _, item in ipairs(shop_items) do
+        if item.id == name then return item.icon end
     end
     return nil
 end
@@ -431,18 +513,26 @@ function Rewards.draw()
     love.graphics.rectangle("fill", 0, 0, 128*6, 128*2)
     Utils.setColor(7)
     part.draw()
-    Utils.centerText(Lang.text("reward_choose"), 10)
+    Utils.centerText(Lang.text("shop_title"), 10)
+        
+    -- Mostra dinheiro
+    Utils.setColor(10)
+    love.graphics.print(Lang.text("hud_money", player.money), 16, 10)
 
     local reward = Rewards.current_rewards[Rewards.selected_index]
-    if reward then
+    if Rewards.selected_index and Rewards.slots[Rewards.selected_index] then
+        local slot = Rewards.slots[Rewards.selected_index]
         Utils.setColor(7)
-        love.graphics.print(reward.get_desc(), 16, (128 * 2) - 48)
-        if reward.get_desc2 then
-            Utils.setColor(12)
-            love.graphics.print(reward.get_desc2(player), 16, (128 * 2) - 28)
+        if slot.item then
+            love.graphics.print(slot.item.get_name(), 16, (128 * 2) - 64)
+            love.graphics.print(slot.item.get_desc(), 16, (128 * 2) - 48)
+            -- Se tiver get_desc2 (stats), desenha
+            if slot.item.get_desc2 then
+                Utils.setColor(12)
+                love.graphics.print(slot.item.get_desc2(player), 16, (128 * 2) - 28)
+            end
         end
     end
-    
     Buttons:drawAll()
 end
 

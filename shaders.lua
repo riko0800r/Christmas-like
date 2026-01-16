@@ -88,6 +88,17 @@ Shaders.uber = love.graphics.newShader[[
     }
 ]]
 
+Shaders.pixelate = love.graphics.newShader[[
+    extern float pixel_size;
+    extern vec2 res;
+
+    vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
+        // Quantiza as coordenadas para criar o efeito de "escada" de pixel art
+        vec2 p = floor(texture_coords * res / pixel_size) * pixel_size / res;
+        return Texel(texture, p) * color;
+    }
+]]
+
 -- =============================================================
 --                    FUNÇÕES DE CONTROLE
 -- =============================================================

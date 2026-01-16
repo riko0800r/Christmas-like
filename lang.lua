@@ -182,6 +182,26 @@ local db = {
         ["menu_continue_run"] = "Continuar Run (Onda %d)", -- New
         ["menu_record"]       = "Recorde: Onda %d | Tempo: %s", -- New
         ["menu_no_record"]    = "Sem Recorde", -- New
+
+        ["shop_title"] = "LOJA NATALINA",
+        ["shop_reroll"] = "Rerolar Loja: $%d",
+        ["shop_free"] = "GRÁTIS",
+        ["shop_sold"] = "VENDIDO",
+        ["shop_poor"] = "Sem dinheiro!",
+        ["hud_money"] = "$%d",
+        
+        -- NOVOS ITENS E RELIQUIAS
+        ["item_potion"] = "Poção de Vida",
+        ["item_potion_desc"] = "Uso único: Cura 5 de vida instantaneamente.",
+        ["item_bomb"] = "Bomba natalina",
+        ["item_bomb_desc"] = "Uso único: Explode todos os inimigos da tela.",
+        
+        ["relic_greed"] = "A Ganância",
+        ["relic_greed_desc"] = "Inimigos dropam mais moedas, mas têm mais vida.",
+        ["relic_boots"] = "Botas Mágicas",
+        ["relic_boots_desc"] = "Aumenta velocidade base permanentemente.",
+        ["relic_glass"] = "Canhão de Vidro",
+        ["relic_glass_desc"] = "Dobre seu dano, mas reduza sua vida máxima pela metade.",
     },
     ["en"] = {
         -- MENU
@@ -361,6 +381,26 @@ local db = {
         ["menu_continue_run"] = "Continue Run (Wave %d)", -- New
         ["menu_record"]       = "Best: Wave %d | Time: %s", -- New
         ["menu_no_record"]    = "No Record", -- New
+
+        ["shop_title"] = "CHRISTMAS SHOP",
+        ["shop_reroll"] = "Reroll Shop: $%d",
+        ["shop_free"] = "FREE",
+        ["shop_sold"] = "SOLD",
+        ["shop_poor"] = "Not enough cash!",
+        ["hud_money"] = "$%d",
+
+        -- NEW ITEMS AND RELICS
+        ["item_potion"] = "Health Potion",
+        ["item_potion_desc"] = "One use: Heals 5 HP instantly.",
+        ["item_bomb"] = "Christmas Bomb",
+        ["item_bomb_desc"] = "One use: Explodes all enemies on screen.",
+        
+        ["relic_greed"] = "The greed",
+        ["relic_greed_desc"] = "Enemies drop more coins, but have more HP.",
+        ["relic_boots"] = "Magic Boots",
+        ["relic_boots_desc"] = "Increases movement speed permanently.",
+        ["relic_glass"] = "Glass Cannon",
+        ["relic_glass_desc"] = "Double your damage, but halve your max HP.",
     }
 }
 

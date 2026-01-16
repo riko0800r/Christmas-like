@@ -21,6 +21,7 @@ local neve=love.graphics.newImage("assets/neve.png")
 local pedras=love.graphics.newImage("assets/pedra.png")
 local rodas=love.graphics.newImage("assets/neve.png")
 local sombriosSprite=love.graphics.newImage("assets/sombrio.png")
+local CoinICON=love.graphics.newImage("assets/CoinICON.png")
 
 local presente=love.graphics.newImage("assets/Presente2.png")
 
@@ -119,10 +120,19 @@ function Player.new()
         ["Veneno mortal"] = 0,
         ["Fogo perigoso"] = 0,
         ["Imobilizador"] = 0,
+        ["Vitalidade"] = 0,         -- Adicionado
         ["Anel de Lava"] = 0,
         ["Pedras Preciosas"] = 0,
-        ["Raios de luz"] = 0,
-        ["Estrelas Natalinas"]=0,
+        ["Espada triângular"] = 0,  -- Adicionado (caso use no futuro)
+        ["Guirlanda"] = 0,          -- Adicionado
+        ["Bumerangue"] = 0,         -- Adicionado
+        ["Estrelas Natalinas"] = 0, -- Adicionado
+        ["Drenagem Natalina"] = 0,  -- Adicionado (Roubo de vida)
+        
+        -- Sinergias (opcional manter aqui ou não, mas bom padronizar)
+        ["Anel de renas"] = 0,
+        ["Pedras que seguem"] = 0,
+        ["Combo tóxico"] = 0,
     }
 
     -- SINERGIA 1: ANEL DE RENAS
@@ -220,10 +230,45 @@ function Player.new()
 
     self.hitbox_w = 6
     self.hitbox_h = 6
-    self.hitbox_off_x = 5 
+    self.hitbox_off_x = 5
     self.hitbox_off_y = 5
 
+    self.money = 30
+    self.active_item = nil
+    self.relics = {}
+    
+    self.coin_magnet_range = 40
+
     return self
+end
+
+function Player:useActiveItem()
+    if not self.active_item then return end
+    
+    local used = false
+    
+    if self.active_item == "potion" then
+        if self.lifes < self.max_life then
+            self.lifes = math.min(self.max_life, self.lifes + 5)
+            used = true
+            -- Efeito visual
+            local part = require("part")
+            part.add(self.x, self.y, 20, 11) -- Verde
+        end
+    elseif self.active_item == "bomb" then
+        local Enemy = require("enemies")
+        Enemy.damageAll(4)
+        used = true
+        -- Shake e flash
+        local Camera = require("camera")
+        Camera:shake(2, 2)
+        local Shaders = require("shaders")
+        Shaders:applyHitFlash(1.0)
+    end
+    
+    if used then
+        self.active_item = nil -- Consome o item
+    end
 end
 
 function Player:update(dt, enemies, time)
@@ -1206,6 +1251,16 @@ function Player:draw()
         local offsetX = self.flp and 8 or 0 
         love.graphics.draw(self.sprite_sheet, self.sprite[self.tipo_jogador], self.x + offsetX, self.y,0, scaleX, 2, 4)
     end
+
+    local Utils = require("utils")
+    local Lang = require("lang")
+    
+    -- Desenha Dinheiro (Canto superior direito ou esquerdo)
+    Utils.setColor(10) -- Amarelo
+    love.graphics.print(Lang.text("hud_money", self.money), 24, 128*2 - (128+48))
+    -- love.graphics.draw(CoinICON, 4, 128*2 - (128+48))
+    
+    Utils.setColor(7)
 
     if Debug.options.show_player_rect then
         love.graphics.setColor(0, 1, 0, 1) -- Verde para o player

@@ -37,7 +37,7 @@ Characters.list = {
             }
         end
     },
-    {
+{
         id = "vital",
         get_name = function() return Lang.text("char_vital") end,
         get_desc = function() 
@@ -50,25 +50,18 @@ Characters.list = {
         apply = function(p)
             p.tipo_jogador = 2
             p.demage = 1.75
-            p.tiro = true
-            p.speed = 1.75
+            p.tiro = true -- Ela atira, mas a arma especial dela é a vitalidade
+            p.speed = 3
             p.tiro_max_time = 2.5
             p.regen = true
             p.vidas_por_rodada = 1
             p.sp = {12,12}
-            p.item_levels = {
-                ["Bola de neve"] = 1,
-                ["Bloco de gelo"] = 0,
-                ["Pedras do ceu"] = 0,
-                ["Veneno mortal"] = 0,
-                ["Fogo perigoso"] = 0,
-                ["Imobilizador"] = 0,
-                ["Anel de Lava"] = 0,
-                ["Pedras Preciosas"] = 0,
-                ["Anel de renas"] = 0,
-                ["Pedras que seguem"] = 0,
-                ["Combo tóxico"] = 0,
-            }
+            
+            -- RESETANDO TABELA E DEFININDO VITALIDADE COMO 1
+            for k,v in pairs(p.item_levels) do p.item_levels[k] = 0 end
+            
+            p.item_levels["Bola de neve"] = 1 -- Como p.tiro=true, ela tem a bola de neve nvl 1
+            p.item_levels["Vitalidade"] = 1   -- E a habilidade passiva nvl 1
         end
     },
     {
@@ -367,13 +360,17 @@ Characters.list = {
         apply = function(p)
             p.tipo_jogador = 10
             p.demage = 1
-            p.bumerangue=true
+            p.bumerangue = true
             p.bumerangue_delay = 1.45
             p.speed = 2.5
             p.sp = {64,64}
+
+            -- ATUALIZAÇÃO: Iniciar Bumerangue no Nível 1
+            for k,v in pairs(p.item_levels) do p.item_levels[k] = 0 end
+            p.item_levels["Bumerangue"] = 1
         end
     },
-    {
+{
         id = "Tree",
         get_name = function() return Lang.text("char_tree") end,
         get_desc = function() 
@@ -387,13 +384,17 @@ Characters.list = {
             p.tipo_jogador = 11
             p.demage = 1
             p.speed = 2.5
-            p.guirlanda=true
+            p.guirlanda = true
             p.guirlanda_raio = 56
-            p.guirlanda_dano=0.4
+            p.guirlanda_dano = 0.4
             p.sp = {64,64}
+
+            -- ATUALIZAÇÃO: Iniciar Guirlanda no Nível 1
+            for k,v in pairs(p.item_levels) do p.item_levels[k] = 0 end
+            p.item_levels["Guirlanda"] = 1
         end
     },
-    {
+{
         id = "Atirador",
         get_name = function() return Lang.text("char_atirador") end,
         get_desc = function() 
@@ -406,13 +407,17 @@ Characters.list = {
         apply = function(p)
             p.tipo_jogador = 12
             p.demage = 1.75
-            p.tiro_max_time=1.25
+            p.tiro_max_time = 1.25
             p.speed = 2.25
-            p.tiro=true
+            p.tiro = true
             p.sp = {64,64}
+
+            -- ATUALIZAÇÃO: Iniciar Bola de neve no Nível 1
+            for k,v in pairs(p.item_levels) do p.item_levels[k] = 0 end
+            p.item_levels["Bola de neve"] = 1
         end
     },
-    {
+{
         id = "estrela",
         get_name = function() return Lang.text("char_estrela_natalina") end,
         get_desc = function() 
@@ -424,24 +429,15 @@ Characters.list = {
         sprite_id = 13,
         apply = function(p)
             p.tipo_jogador = 13
-            p.demage = 1.0
-            p.estrelas_natalinas=true
-            p.estrelas_count=4
-            p.speed = 2.25
+            p.demage = 1.25
+            p.estrelas_natalinas = true
+            p.estrelas_count = 4
+            p.speed = 2.75
             p.sp = {13,13}
-            p.item_levels = {
-                ["Bola de neve"] = 1,
-                ["Bloco de gelo"] = 0,
-                ["Pedras do ceu"] = 0,
-                ["Veneno mortal"] = 1,
-                ["Fogo perigoso"] = 0,
-                ["Imobilizador"] = 0,
-                ["Anel de Lava"] = 0,
-                ["Pedras Preciosas"] = 0,
-                ["Anel de renas"] = 0,
-                ["Pedras que seguem"] = 0,
-                ["Combo tóxico"] = 0,
-            }
+            
+            -- ATUALIZAÇÃO: Corrigido para Estrelas Natalinas
+            for k,v in pairs(p.item_levels) do p.item_levels[k] = 0 end
+            p.item_levels["Estrelas Natalinas"] = 1
         end
     },
 }

@@ -44,6 +44,8 @@ Musica_Luta_Antiga = love.audio.newSource("assets/antigo/musica_3_OST.wav","stre
 SFX_Morte=love.audio.newSource("assets/morte.wav","static")
 SFX_select=love.audio.newSource("assets/menu.wav","static")
 
+local DadoICON = love.graphics.newImage("assets/DadoICON.png") -- Use o ícone de vida
+
 local seed_input = ""
 local entering_seed = false
 
@@ -420,17 +422,48 @@ function setupButtonsForState(state)
             _G.switchState("menu")
         end)
     elseif state == "rewards" then
-        for i, reward in ipairs(Rewards.current_rewards) do
-            -- Usa reward.get_name()
-            Buttons:newButton(24, 40 + (i - 1) * 20, 8*22, 16, reward.get_name(),
-            function()
+        Buttons:clear()
+        
+        -- Configuração da linha única
+        local total_items = #Rewards.slots
+        local start_x = 10
+        local y = 60
+        local btn_w = 64  -- Largura menor para caber 6 na tela (512px total)
+        local btn_h = 32  -- Botões quadrados ficam melhores em linha
+        local spacing = 4
+
+        for i, slot in ipairs(Rewards.slots) do
+            local x = start_x + (i - 1) * (btn_w + spacing)
+            
+            local label = "$" .. slot.item.price
+            if slot.bought then label = "SOLD" end
+
+            Buttons:newButton(x, y, btn_w, btn_h, label, function()
+                Rewards.buy(i)
+            end, function()
                 Rewards.selected_index = i
-                Rewards:selectReward()
-            end,
-            function()
-                Rewards.selected_index = i
-            end,reward.icon)
+            end, slot.item.icon)
         end
+
+        -- Reroll centralizado embaixo
+        Buttons:newButton(128*2 - 80, 160, 160, 24, "Reroll: $"..Rewards.reroll_cost, function() 
+            Rewards.reroll() 
+        end,
+        function ()
+            
+        end,
+        DadoICON)
+
+        Buttons:newButton(8, 160, 64, 24, Lang.text("menu_continue"), function()
+            _G.switchState("play")
+            -- Reseta e toca musica de luta
+            Musica_Atual:stop()
+            if GameConfig.musica_antiga==false then Musica_Atual = Luta_Musica else Musica_Atual = Musica_Luta_Antiga end
+            Musica_Atual:play()
+            Musica_Atual:setVolume(0.25)
+            Musica_Atual:setLooping(true)
+        end)
+
     elseif state=="Quem fez?" then
         Buttons:newButton(64, 40, 8*40, 24, Lang.text("riko"), 
             function ()
@@ -1176,6 +1209,12 @@ function love.keypressed(key)
                 if SFX_Pickup_Heart then SFX_Pickup_Heart:play() end
                 print("CODIGO DEBUG ATIVADO: MODO DEBUG LIGADO")
             end
+        end
+    end
+
+    if GameState.current == "play" and not is_paused then
+        if key == "space" then
+            player:useActiveItem()
         end
     end
 
