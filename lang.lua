@@ -202,6 +202,22 @@ local db = {
         ["relic_boots_desc"] = "Aumenta velocidade base permanentemente.",
         ["relic_glass"] = "Canhão de Vidro",
         ["relic_glass_desc"] = "Dobre seu dano, mas reduza sua vida máxima pela metade.",
+        
+        ["item_crit_name"] = "Precisão Mortal",
+        ["item_crit_desc"] = "Aumenta chance e dano crítico",
+        ["item_atkspd_name"] = "Velocidade de Ataque",
+        ["item_atkspd_desc"] = "Reduz cooldown de todos os ataques",
+        ["item_shield_name"] = "Escudo Natalino",
+        ["item_shield_desc"] = "Chance de bloquear dano completamente",
+        ["item_multishot_name"] = "Rajada Glacial",
+        ["item_multishot_desc"] = "Chance de disparar projéteis extras",
+        ["item_explode_name"] = "Presente Explosivo",
+        ["item_explode_desc"] = "Inimigos explodem ao morrer",
+        ["relic_luck_name"] = "Sorte Dourada",
+        ["relic_luck_desc"] = "Dobra drops raros e melhora recompensas",
+
+        ["relic_coin_magnet"] = "Imã de moedas.",
+        ["relic_coin_magnet_desc"] = "Alcance de coleta de moedas maior."
     },
     ["en"] = {
         -- MENU

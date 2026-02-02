@@ -367,6 +367,120 @@ local upgrades = {
         type = "upgrade",
         weight = 20, -- Raridade (quanto menor, mais raro)
         icon = love.graphics.newImage("assets/EstrelaICON.png"),
+    },
+    -- 🆕 NOVOS ITENS ADICIONADOS
+    {
+        id = "Precisão Mortal",
+        get_name = function() return "Precisão Mortal" end,
+        effect = function(p) 
+            p.crit_chance = (p.crit_chance or 0) + 0.05
+            p.crit_damage = (p.crit_damage or 1.5) + 0.25
+        end, 
+        get_desc = function() return "Aumenta chance e dano de acertos críticos" end, 
+        get_desc2 = function(p) 
+            local current_chance = ((p.crit_chance or 0) * 100)
+            local next_chance = current_chance + 5
+            local current_dmg = ((p.crit_damage or 1.5) - 1) * 100
+            local next_dmg = current_dmg + 25
+            local level = (p.item_levels["Precisão Mortal"] or 0)
+            return string.format("Nível %d | Crítico: %.0f%% → %.0f%% | Dano: +%.0f%% → +%.0f%%", 
+                level, current_chance, next_chance, current_dmg, next_dmg)
+        end,
+        price = 5,
+        type = "upgrade",
+        weight = 8,
+        icon = love.graphics.newImage("assets/sprite5.png"),
+    },
+    {
+        id = "Velocidade de Ataque",
+        get_name = function() return "Velocidade de Ataque" end,
+        effect = function(p) 
+            local reduction = 0.95
+            if p.tiro then p.tiro_max_time = p.tiro_max_time * reduction end
+            if p.roda then p.roda_max_time = p.roda_max_time * reduction end
+            if p.pedra then p.pedra_max_time = p.pedra_max_time * reduction end
+            if p.veneno then p.veneno_delay = p.veneno_delay * reduction end
+            if p.fogo then p.fogo_delay = p.fogo_delay * reduction end
+            if p.gelo then p.gelo_delay = p.gelo_delay * reduction end
+            if p.bumerangue then p.bumerangue_delay = p.bumerangue_delay * reduction end
+            p.attack_speed_mult = (p.attack_speed_mult or 1.0) * reduction
+        end, 
+        get_desc = function() return "Reduz o tempo de recarga de TODOS os ataques" end, 
+        get_desc2 = function(p) 
+            local current_mult = ((p.attack_speed_mult or 1.0) - 1) * -100
+            local next_mult = current_mult + 5
+            local level = (p.item_levels["Velocidade de Ataque"] or 0)
+            return string.format("Nível %d | Velocidade: +%.0f%% → +%.0f%%", 
+                level, current_mult, next_mult)
+        end,
+        price = 5,
+        type = "upgrade",
+        weight = 15,
+        icon = Rapidez,
+    },
+    {
+        id = "Escudo Natalino",
+        get_name = function() return "Escudo Natalino" end,
+        effect = function(p) 
+            p.block_chance = math.min(0.75, (p.block_chance or 0) + 0.10)
+        end, 
+        get_desc = function() return "Chance de bloquear completamente o dano recebido" end, 
+        get_desc2 = function(p) 
+            local current = ((p.block_chance or 0) * 100)
+            local next_val = math.min(75, current + 10)
+            local level = (p.item_levels["Escudo Natalino"] or 0)
+            return string.format("Nível %d | Bloqueio: %.0f%% → %.0f%% (máx 75%%)", 
+                level, current, next_val)
+        end,
+        price = 5,
+        type = "upgrade",
+        weight = 8,
+        icon = love.graphics.newImage("assets/sprite2.png"),
+    },
+    {
+        id = "Rajada Glacial",
+        get_name = function() return "Rajada Glacial" end,
+        effect = function(p) 
+            p.multishot_chance = (p.multishot_chance or 0) + 0.08
+            p.multishot_count = (p.multishot_count or 1) + 0.3
+        end, 
+        get_desc = function() return "Chance de disparar projéteis adicionais" end, 
+        get_desc2 = function(p) 
+            local current_chance = ((p.multishot_chance or 0) * 100)
+            local next_chance = current_chance + 8
+            local current_count = math.floor(p.multishot_count or 1)
+            local next_count = math.floor((p.multishot_count or 1) + 0.3)
+            local level = (p.item_levels["Rajada Glacial"] or 0)
+            return string.format("Nível %d | Chance: %.0f%% → %.0f%% | Extra: %d → %d", 
+                level, current_chance, next_chance, current_count, next_count)
+        end,
+        price = 5,
+        type = "upgrade",
+        weight = 5,
+        icon = neve,
+    },
+    {
+        id = "Presente Explosivo",
+        get_name = function() return "Presente Explosivo" end,
+        effect = function(p) 
+            p.death_explosion = true
+            p.explosion_damage = (p.explosion_damage or 0.5) + 0.1
+            p.explosion_radius = (p.explosion_radius or 24) + 4
+        end, 
+        get_desc = function() return "Inimigos mortos explodem causando dano em área" end, 
+        get_desc2 = function(p) 
+            local current_dmg = ((p.explosion_damage or 0.5) * 100)
+            local next_dmg = current_dmg + 10
+            local current_rad = (p.explosion_radius or 24)
+            local next_rad = current_rad + 4
+            local level = (p.item_levels["Presente Explosivo"] or 0)
+            return string.format("Nível %d | Dano: %.0f%% → %.0f%% do dano | Raio: %dpx → %dpx", 
+                level, current_dmg, next_dmg, current_rad, next_rad)
+        end,
+        price = 5,
+        type = "upgrade",
+        weight = 6,
+        icon = presente,
     }
 }
 
@@ -390,6 +504,17 @@ local shop_items = {
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/ImãICON.png")
+    },
+    -- 🆕 NOVA RELÍQUIA
+    {
+        id = "Sorte Dourada",
+        get_name = function() return "Sorte Dourada" end,
+        get_desc = function() return "Dobra a chance de drops raros e melhora recompensas" end,
+        effect = function(p) p.relics["Sorte Dourada"] = true end,
+        price = 150,
+        type = "relic",
+        weight = 8,
+        icon = love.graphics.newImage("assets/Sorte.png")
     },
 
 }

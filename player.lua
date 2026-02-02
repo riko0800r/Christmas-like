@@ -25,6 +25,49 @@ local CoinICON=love.graphics.newImage("assets/CoinICON.png")
 
 local presente=love.graphics.newImage("assets/Presente2.png")
 
+function Player:applyMultishot(spawn_function, spread_angle)
+    -- Executa o spawn normal (1 projétil)
+    spawn_function(self)
+    
+    -- Se não tiver multishot, retorna
+    if not self.multishot_chance or self.multishot_chance <= 0 then
+        return
+    end
+    
+    -- Testa a chance de multishot
+    if math.random() < self.multishot_chance then
+        local extra_count = math.floor(self.multishot_count or 1)
+        spread_angle = spread_angle or 0.3 -- Padrão: ~17 graus
+        
+        -- Dispara projéteis extras
+        for i = 1, extra_count do
+            self:multishotVisualEffect()
+            -- Alterna entre esquerda e direita
+            local offset = (i % 2 == 0) and spread_angle or -spread_angle
+            local angle_multiplier = math.ceil(i / 2)
+            
+            -- Guarda o ângulo/posição original
+            local original_angle = self.multishot_temp_angle or 0
+            
+            -- Modifica temporariamente para o spawn
+            self.multishot_temp_angle = original_angle + (offset * angle_multiplier)
+            
+            -- Executa o spawn com o novo ângulo
+            spawn_function(self)
+            
+            -- Restaura o ângulo original
+            self.multishot_temp_angle = original_angle
+        end
+    end
+end
+
+function Player:applyCritical(base_damage)
+    if self.crit_chance and math.random() < self.crit_chance then
+        return base_damage * (self.crit_damage or 1.5), true
+    end
+    return base_damage, false
+end
+
 function Player.new()
     local self = setmetatable({}, Player)
     self.lifes = self.max_life
@@ -111,6 +154,12 @@ function Player.new()
     self.estrelas_cooldown=2.5
     self.estrelas_count = 2
     self.pending_stars = {} -- Tabela para controlar quem vai ser atingido
+
+    self.multishot_count = 1
+    self.death_explosion = false
+    self.explosion_damage = 0.25
+    self.explosion_radius = 48
+    self.attack_speed_mult = 1.0
 
     -- SISTEMA DE NÍVEIS DE ITENS
     self.item_levels = {
@@ -239,6 +288,12 @@ function Player.new()
     
     self.coin_magnet_range = 40
 
+    self.multishot_chance = 0      -- Chance de disparar projéteis extras (0-1)
+    self.multishot_count = 1       -- Quantos projéteis extras disparar
+    self.crit_chance = 0           -- Chance de crítico
+    self.crit_damage = 1.5         -- Multiplicador de dano crítico
+
+
     return self
 end
 
@@ -314,14 +369,6 @@ function Player:update(dt, enemies, time)
     if self.triangle then self:checkTriangleSpawn(dt) end
     if self.RaioDeLuz then self:checkRaioSpawn(dt) end
 
-    if self.bumerangue then
-        self.bumerangue_time = self.bumerangue_time + dt
-        if self.bumerangue_time >= self.bumerangue_delay then
-            self.bumerangue_time = 0
-            self:spawnBumerangue()
-        end
-    end
-
     if self.guirlanda then
         self.guirlanda_tick = self.guirlanda_tick + dt
         if self.guirlanda_tick >= self.guirlanda_tick_rate then
@@ -349,6 +396,8 @@ function Player:update(dt, enemies, time)
         self:updateSombrios(dt, enemies)
         self:updateRaio(dt, enemies)
         self:updateBumerangues(dt, enemies)
+        if self.estrelas_natalinas then self:checkEstrelaSpawn(dt, enemies) end
+        if self.bumerangue then self:CheckSpawnBumerangue(dt,enemies) end
     end
 
     if self.veneno then
@@ -384,7 +433,12 @@ function Player:update(dt, enemies, time)
                     local dy = e.y + e.h/2 - p.y
                     local dist = math.sqrt(dx*dx + dy*dy)
                     if dist < (p.r + e.w/2) then
-                        local dmg = self.anel_dano/4
+                        local dmg, is_crit = self:applyCritical(self.anel_dano/4)
+                        -- Efeito visual de crítico
+                        if is_crit then
+                            local part = require("part")
+                            part.add(e.x, e.y, 15, 10) -- Partículas amarelas
+                        end
                         self:recordDamage("presente dourado", dmg)
                         e:takeDamage(dmg, self)
                         if self.veneno then e.veneno = true end
@@ -397,24 +451,6 @@ function Player:update(dt, enemies, time)
     end
     
     if self.estrelas_natalinas then
-        self.estrelas_timer = self.estrelas_timer - dt
-        
-        -- 1. MOMENTO DA MIRA: Escolhe os inimigos
-        if self.estrelas_timer <= 0 then
-            local inimigos = Enemy.get_all() -- Certifique-se que enemies.lua exporta a lista
-            if #inimigos > 0 then
-                for i = 1, self.estrelas_count do
-                    local alvo = inimigos[math.random(1, #inimigos)]
-                    table.insert(self.pending_stars, {
-                        enemy = alvo,
-                        timer = 1.125, -- 1.125 segundos para cair
-                        hit = false
-                    })
-                end
-            end
-            self.estrelas_timer = self.estrelas_cooldown
-        end
-
         -- 2. ATUALIZAR ESTRELAS PENDENTES
         for i = #self.pending_stars, 1, -1 do
             local s = self.pending_stars[i]
@@ -475,39 +511,46 @@ function Player:onWaveEnd()
     end
 end
 
-function Player:spawnBumerangue()
-    -- Escolhe uma direção cardeal aleatória (Cima, Baixo, Esquerda, Direita)
-    local dirs = {
-        {x=0, y=-1}, -- Cima
-        {x=0, y=1},  -- Baixo
-        {x=-1, y=0}, -- Esquerda
-        {x=1, y=0},   -- Direita
-        {x=-1, y=-1}, -- Cima
-        {x=1, y=1},  -- Baixo
-        {x=-1, y=1}, -- Esquerda
-        {x=-1, y=1},   -- Direita
-    }
-    
-    local dir = dirs[love.math.random(1, 8)]
-    table.insert(self.bumerangues, {
-        x = self.x + 8,
-        y = self.y + 8,
-        start_x = self.x + 8,
-        start_y = self.y + 8,
-        dx = dir.x,
-        dy = dir.y,
-        state = "going", -- "going" ou "returning"
-        dist_traveled = 0,
-        gifts = {}, -- Presentes que ele solta
-        gift_timer = 0,
-        rot = 0,
-        hitbox_w = 28,
-        hitbox_h = 28,
-        hitbox_off_x = -8,
-        hitbox_off_y = -8,
-        hit_delay_atual=0,
-        hit_delay_timer=self.bumerangue_delay_hit,
-    })
+function Player:CheckSpawnBumerangue(dt,enemies)
+    self.bumerangue_time = self.bumerangue_time + dt
+    if self.bumerangue_time >= self.bumerangue_delay then
+        local function spawn_single_bumerangue(player)   
+            -- Escolhe uma direção cardeal aleatória (Cima, Baixo, Esquerda, Direita)
+            local dirs = {
+                {x=0, y=-1}, -- Cima
+                {x=0, y=1},  -- Baixo
+                {x=-1, y=0}, -- Esquerda
+                {x=1, y=0},   -- Direita
+                {x=-1, y=-1}, -- Cima
+                {x=1, y=1},  -- Baixo
+                {x=-1, y=1}, -- Esquerda
+                {x=-1, y=1},   -- Direita
+            }
+            
+            local dir = dirs[love.math.random(1, 8)]
+            table.insert(self.bumerangues, {
+                x = self.x + 8,
+                y = self.y + 8,
+                start_x = self.x + 8,
+                start_y = self.y + 8,
+                dx = dir.x,
+                dy = dir.y,
+                state = "going", -- "going" ou "returning"
+                dist_traveled = 0,
+                gifts = {}, -- Presentes que ele solta
+                gift_timer = 0,
+                rot = 0,
+                hitbox_w = 28,
+                hitbox_h = 28,
+                hitbox_off_x = -8,
+                hitbox_off_y = -8,
+                hit_delay_atual=0,
+                hit_delay_timer=self.bumerangue_delay_hit,
+            })
+        end
+        self:applyMultishot(spawn_single_bumerangue, 0.4)
+        self.bumerangue_time = 0
+    end
 end
 
 function Player:updateBumerangues(dt, enemies)
@@ -749,14 +792,21 @@ end
 function Player:checkTiroSpawn(dt)
     self.tiro_time = self.tiro_time + dt
     if self.tiro_time >= self.tiro_max_time then
-        table.insert(self.bullets, {
-            x = self.x + self.width / 2, y = self.y + self.height / 2, 
-            speed = self.bala_speed, tipo = "normal", width = 4, height = 4,
-            hitbox_w = 8,
-            hitbox_h = 8,
-            hitbox_off_x = 0, -- (16 - 10) / 2
-            hitbox_off_y = 0
-        })
+        local function spawn_single_bullet(player)
+            table.insert(player.bullets, {
+                x = player.x + player.width / 2, 
+                y = player.y + player.height / 2, 
+                speed = player.bala_speed, 
+                tipo = "normal", 
+                width = 4, 
+                height = 4,
+                hitbox_w = 8,
+                hitbox_h = 8,
+                hitbox_off_x = 0,
+                hitbox_off_y = 0
+            })
+        end
+        self:applyMultishot(spawn_single_bullet, 0.25)
         self.tiro_time = 0
     end
 end
@@ -764,19 +814,25 @@ end
 function Player:checkRaioSpawn(dt)
     self.Raio_time = self.Raio_time + dt
     if self.Raio_time >= self.Raio_max_time then
-        self:spawnRaio()
+        local function spawn_single_raio(player)
+            player:spawnRaio()
+        end
+        self:applyMultishot(spawn_single_raio, 0.4)
         self.Raio_time = 0
     end
 end
 
 function Player:spawnRaio()
+    local x_offset = (self.multishot_temp_angle or 0) * 40 -- Offset horizontal
     for i = 0, 1 do
         table.insert(self.Raios, {
-            x = self.x + self.width / 2, y = 0,
+            x = self.x + self.width / 2 + x_offset, 
+            y = 0,
             dx = 0,
             dy = 0,
             life_timer = self.Raio_life,
-            width = 32, height = 256
+            width = 32,
+            height = 256
         })
     end
 end
@@ -810,7 +866,10 @@ end
 function Player:checkRodaSpawn(dt)
     self.roda_time = self.roda_time + dt
     if self.roda_time >= self.roda_max_time then
-        self:spawnRodas(10 + self.roda_size, 2 * 60 * dt)
+        local function spawn_single_roda(player)
+            player:spawnRodas(10 + player.roda_size, 2 * 60 * dt)
+        end
+        self:applyMultishot(spawn_single_roda, 0.5)
         self.roda_time = 0
     end
 end
@@ -835,41 +894,47 @@ end
 function Player:checkSombrioSpawn(dt)
     self.sombrio_time = self.sombrio_time + dt
     if self.sombrio_time >= self.sombrio_delay then
-        for i = 1, self.sombrio_quantidade do
-            local angle = -math.pi / 2 + love.math.random(-0.3, 0.3)
-            local speed = love.math.random(45, 135)
-            local dx = math.cos(angle) * speed
-            local dy = math.sin(angle) * speed
-            if i%2==0 then
-                table.insert(self.sombrios, {
-                    x = self.x + self.width / 2,
-                    y = self.y,
-                    dx = dx,
-                    dy = dy,
-                    life_timer = love.math.random(8,12),
-                    width = 8,
-                    height = 8,
-                    hitbox_w = 8,
-                    hitbox_h = 8,
-                    hitbox_off_x = -4, -- (16 - 10) / 2
-                    hitbox_off_y = -4
-                })
-            else
-                table.insert(self.sombrios, {
-                    x = self.x + self.width / 2,
-                    y = self.y,
-                    dx = dx,
-                    dy = -dy,
-                    life_timer = love.math.random(8,12),
-                    width = 8,
-                    height = 8,
-                    hitbox_w = 8,
-                    hitbox_h = 8,
-                    hitbox_off_x = -4, -- (16 - 10) / 2
-                    hitbox_off_y = -4
-                }) 
+        -- Função de spawn individual
+        local function spawn_single_sombrio(player)
+            local angle_offset = player.multishot_temp_angle or 0
+            
+            for i = 1, player.sombrio_quantidade do
+                local base_angle = -math.pi / 2 + love.math.random(-0.3, 0.3)
+                local angle = base_angle + angle_offset
+                local speed = love.math.random(45, 135)
+                local dx = math.cos(angle) * speed
+                local dy = math.sin(angle) * speed
+                
+                if i % 2 == 0 then
+                    table.insert(player.sombrios, {
+                        x = player.x + player.width / 2,
+                        y = player.y,
+                        dx = dx,
+                        dy = dy,
+                        life_timer = love.math.random(8, 12),
+                        width = 8, height = 8,
+                        hitbox_w = 8, hitbox_h = 8,
+                        hitbox_off_x = -4,
+                        hitbox_off_y = -4
+                    })
+                else
+                    table.insert(player.sombrios, {
+                        x = player.x + player.width / 2,
+                        y = player.y,
+                        dx = dx,
+                        dy = -dy,
+                        life_timer = love.math.random(8, 12),
+                        width = 8, height = 8,
+                        hitbox_w = 8, hitbox_h = 8,
+                        hitbox_off_x = -4,
+                        hitbox_off_y = -4
+                    })
+                end
             end
         end
+        
+        -- Aplica multishot
+        self:applyMultishot(spawn_single_sombrio, 0.35)
         self.sombrio_time = 0
     end
 end
@@ -910,21 +975,27 @@ end
 function Player:checkPedraSpawn(dt)
     self.pedra_time = self.pedra_time + dt
     if self.pedra_time >= self.pedra_max_time then
-            for i=-3,3 do
-            table.insert(self.pedras, {
-                x = self.x+(i*12) + self.width / 2,
-                y = 1,
-                speed = 4 * 60 * dt,
-                life_timer = 4,
-                width = 14, height = 12,
-                hitbox_w = 14,
-                hitbox_h = 12,
-                hitbox_off_x = -7, -- (16 - 10) / 2
-                hitbox_off_y = -4
-                
-            })
-            self.pedra_time = 0
+        local function spawn_single_pedra(player)
+            local base_x = player.x + player.width / 2
+            local offset = player.multishot_temp_angle or 0
+            
+            for i = -3, 3 do
+                local x_offset = (i * 12) + (offset * 20) -- Espalha horizontalmente
+                table.insert(player.pedras, {
+                    x = base_x + x_offset,
+                    y = 1,
+                    speed = 4 * 60 * dt,
+                    life_timer = 4,
+                    width = 14, height = 12,
+                    hitbox_w = 14,
+                    hitbox_h = 12,
+                    hitbox_off_x = -7,
+                    hitbox_off_y = -4
+                })
+            end
         end
+        self:applyMultishot(spawn_single_pedra, 1.0)
+        self.pedra_time = 0
     end
 end
 
@@ -1094,6 +1165,34 @@ function Player:drawTriangle(t)
     love.graphics.pop()
 end
 
+function Player:checkEstrelaSpawn(dt, enemies)
+    self.estrelas_timer = self.estrelas_timer + dt
+    if self.estrelas_timer >= self.estrelas_cooldown then
+        local function spawn_single_estrela(player)
+            local base_count = player.estrelas_count
+            
+            -- CORREÇÃO AQUI: 'enemies' já é a lista, não precisa de .get_all()
+            local inimigos = enemies
+            
+            -- Verificação de segurança se existem inimigos
+            if inimigos and #inimigos > 0 then
+                local extra = (player.multishot_temp_angle and 1 or 0)
+                for i = 1, base_count + extra do
+                    local alvo = inimigos[math.random(1, #inimigos)]
+                    table.insert(self.pending_stars, {
+                        enemy = alvo,
+                        timer = 1.125,
+                        hit = false
+                    })
+                end
+            end
+        end
+        
+        self:applyMultishot(spawn_single_estrela, 0)
+        self.estrelas_timer = 0
+    end
+end
+
 function Player:checkPlayerCollision(enemies)
     local hit = false
     for _, e in ipairs(enemies) do
@@ -1118,6 +1217,19 @@ function Player:checkPlayerCollision(enemies)
 end
 
 function Player:takeHit(dmg)
+    if self.block_chance and math.random() < self.block_chance then
+        -- Efeito visual de bloqueio
+        local part = require("part")
+        part.add(self.x, self.y, 10, 12) -- Partículas azuis
+        
+        -- Som de bloqueio
+        local SFX_Block = love.audio.newSource("assets/escudo.wav", "static")
+        SFX_Block:setPitch(1+math.random(0.5))
+        SFX_Block:setVolume(0.4)
+        SFX_Block:play()
+        
+        return -- Bloqueou o dano!
+    end
     SFX_dano:play()
     local damage = math.floor(dmg or 1)
     self.lifes = self.lifes - damage
@@ -1340,6 +1452,19 @@ function Player:draw()
         love.graphics.setColor(1, 1, 1, 1)
     end
     Part.draw()
+end
+
+function Player:multishotVisualEffect()
+    local part = require("part")
+    -- Círculo de partículas azuis ao disparar multishot
+    for i = 1, 8 do
+        local angle = (i / 8) * math.pi * 2
+        part.add(
+            self.x + math.cos(angle) * 12,
+            self.y + math.sin(angle) * 12,
+            1, 12 -- Partículas azuis
+        )
+    end
 end
 
 return Player

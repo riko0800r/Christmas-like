@@ -201,8 +201,15 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
 
     enemy.image = sprite_sheets[preset.sprite]
 
+    -- 🔧 MELHORADO: Crescimento gradual de HP
+    local wave_factor
+    if is_boss(tipo) then
+        wave_factor = math.pow(1 + (Waves.current_wave * 0.20), 1.12)
+    else
+        wave_factor = math.pow(1 + (Waves.current_wave * 0.12), 1.1)
+    end
+    enemy.lifes = math.floor(preset.hp_base * wave_factor)
     enemy.speed = preset.speed_base + Waves.current_wave * preset.speed_scale
-    enemy.lifes = preset.hp_base + Waves.current_wave * preset.hp_scale
     enemy.demage = (preset.demage_preset or 1) + Waves.current_wave * preset.demage_scale
     enemy.max_hp = enemy.lifes
 
@@ -1016,7 +1023,11 @@ function enemies_module.update(dt, player)
     golden_spawn_timer = golden_spawn_timer + dt
     if golden_spawn_timer >= 2.0 then -- A cada 1 segundo
         golden_spawn_timer = 0
-        if math.random() <= 0.025 then -- 2.5% de chance
+        local golden_chance = 0.025
+        if player.relics and player.relics["Sorte Dourada"] then
+            golden_chance = 0.05 -- Dobra a chance
+        end
+        if math.random() <= golden_chance then -- 2.5% de chance
             local x = math.random(32, 128*4 - 32)
             local y = math.random(32, 128*2 - 32)
             local e = enemies_module.spawn_enemy("renas_especial", x, y, player.waves_manager or require("wave"))
@@ -1031,7 +1042,31 @@ function enemies_module.update(dt, player)
         local e = enemies[i]
         enemies_module.update_enemy(e, player, dt)
         Shaders:updateEnemyFlash(e, dt)
-        if e.dead then       
+        if e.dead then
+            if player.death_explosion then
+                local explosion_damage = player.demage * (player.explosion_damage or 0.5)
+                local explosion_radius = player.explosion_radius or 24
+                
+                -- Causa dano em todos os inimigos próximos
+                for _, other_enemy in ipairs(enemies) do
+                    if other_enemy ~= e then
+                        local dist = math.sqrt((e.x - other_enemy.x)^2 + (e.y - other_enemy.y)^2)
+                        if dist < explosion_radius then
+                            other_enemy:takeDamage(explosion_damage)
+                        end
+                    end
+                end
+                
+                -- Efeito visual de explosão
+                local part = require("part")
+                part.add(e.x, e.y, 30, 8) -- Partículas vermelhas
+                
+                -- Som de explosão
+                local SFX_Explosion = love.audio.newSource("assets/hitHurt.wav", "static")
+                SFX_Explosion:setPitch(0.3)
+                SFX_Explosion:setVolume(0.25)
+                SFX_Explosion:play()
+            end 
             if e.is_golden then
                 -- Drop garantido de 100
                 enemies_module.spawn_coin(e.x, e.y, 25)
@@ -1066,8 +1101,11 @@ function enemies_module.update(dt, player)
                 enemies_module.spawn_enemy("perseguidor", e.x + 8, e.y, e.waves_manager)
             end
             
-            -- >>> NOVO: Chance de dropar coração (5%) <<<
-            if math.random() < 0.05 then
+            local heart_chance = 0.05
+            if player.relics and player.relics["Sorte Dourada"] then
+                heart_chance = 0.10 -- Dobra a chance
+            end
+            if math.random() < heart_chance then
                 enemies_module.spawn_heart(e.x, e.y)
             end
             

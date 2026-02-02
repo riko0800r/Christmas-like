@@ -11,6 +11,9 @@ Waves.active = false
 Waves.infinito = false
 Waves.wave_final = 16
 
+-- 🔧 NOVO: Limite máximo de inimigos por wave
+local MAX_ENEMIES_PER_WAVE = 35
+
 -- Tipos possíveis de inimigos normais
 local enemy_types = {
     "perseguidor",
@@ -141,15 +144,20 @@ function Waves.spawn_wave()
     else
         Waves.wave_final=16
     end -- Modo "Fácil" (game_mode == 1) nunca tem chefes
-    -- No modo infinito, a dificuldade aumenta infinitamente
+    
+    -- 🔧 MELHORADO: Cálculo com limite máximo
     local quantidade
     if Waves.infinito then
-        quantidade = math.floor(1 + Waves.current_wave * 1.25 + (Waves.current_wave / 10) ^ 1.5)
+        -- Crescimento mais agressivo no infinito, mas com limite
+        local base_calc = math.floor(1 + Waves.current_wave * 1.25 + (Waves.current_wave / 10) ^ 1.5)
+        quantidade = math.min(MAX_ENEMIES_PER_WAVE, base_calc)
     else
-        quantidade = math.floor(1 + Waves.current_wave * 1.25)
+        -- Modo normal com limite
+        local base_calc = math.floor(1 + Waves.current_wave * 1.25)
+        quantidade = math.min(MAX_ENEMIES_PER_WAVE, base_calc)
     end
     
-    print("🌊 Wave " .. Waves.current_wave .. " começou! Inimigos: " .. quantidade)
+    print("🌊 Wave " .. Waves.current_wave .. " começou! Inimigos: " .. quantidade .. " (max: " .. MAX_ENEMIES_PER_WAVE .. ")")
 
     local available_enemies = {}
     
@@ -202,6 +210,11 @@ function Waves.get_mode_info()
     else
         return "NORMAL", Waves.wave_final
     end
+end
+
+-- 🔧 NOVA FUNÇÃO: Retorna o limite máximo de inimigos
+function Waves.get_max_enemies()
+    return MAX_ENEMIES_PER_WAVE
 end
 
 return Waves
