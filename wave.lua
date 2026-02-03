@@ -26,6 +26,10 @@ local enemy_types = {
     "horizontal",
     "paladino",
     "invocador",
+    "spike",        -- NOVO
+    "espiral",      -- NOVO
+    "refletor",     -- NOVO
+    "vampiro",      -- NOVO
 }
 
 -- Tipos possíveis de bosses (escolhidos a cada 8 waves)

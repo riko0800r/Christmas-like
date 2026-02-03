@@ -161,6 +161,42 @@ function Player.new()
     self.explosion_radius = 48
     self.attack_speed_mult = 1.0
 
+        -- ESCUDO GIRATÓRIO
+    self.escudo = false
+    self.escudo_time = 0
+    self.escudo_max_time = 3
+    self.escudo_raio = 24
+    self.escudo_laminas = 4
+    self.escudos = {}
+    self.escudo_velocidade = 4
+    self.escudo_angle = 0
+    self.escudo_damage = 1.5
+    self.escudo_life = 2.5
+    self.escudo_size = 8
+    
+    -- METEORO
+    self.meteoro = false
+    self.meteoro_time = 0
+    self.meteoro_max_time = 2.5
+    self.meteoros = {}
+    self.meteoro_damage = 2
+    self.meteoro_explosion_radius = 20
+    self.meteoro_fall_speed = 3
+    self.meteoro_spawn_count = 3
+    self.meteoro_size = 6
+    
+    -- TEIA DE GELO
+    self.teia = false
+    self.teia_time = 0
+    self.teia_max_time = 4
+    self.teias = {}
+    self.teia_base_radius = 30
+    self.teia_max_radius = 80
+    self.teia_slow_factor = 0.3
+    self.teia_damage = 0.1
+    self.teia_life = 3
+    self.teia_grow_per_enemy = 5
+
     -- SISTEMA DE NÍVEIS DE ITENS
     self.item_levels = {
         ["Bola de neve"] = 0,
@@ -293,7 +329,6 @@ function Player.new()
     self.crit_chance = 0           -- Chance de crítico
     self.crit_damage = 1.5         -- Multiplicador de dano crítico
 
-
     return self
 end
 
@@ -368,6 +403,9 @@ function Player:update(dt, enemies, time)
     if self.sombrio_ativo then self:checkSombrioSpawn(dt) end
     if self.triangle then self:checkTriangleSpawn(dt) end
     if self.RaioDeLuz then self:checkRaioSpawn(dt) end
+    if self.escudo then self:checkEscudoSpawn(dt) end
+    if self.meteoro then self:checkMeteorSpawn(dt) end
+    if self.teia then self:checkTeiaSpawn(dt) end
 
     if self.guirlanda then
         self.guirlanda_tick = self.guirlanda_tick + dt
@@ -396,6 +434,9 @@ function Player:update(dt, enemies, time)
         self:updateSombrios(dt, enemies)
         self:updateRaio(dt, enemies)
         self:updateBumerangues(dt, enemies)
+        self:updateEscudo(dt, enemies)
+        self:updateMeteoro(dt, enemies)
+        self:updateTeia(dt, enemies)
         if self.estrelas_natalinas then self:checkEstrelaSpawn(dt, enemies) end
         if self.bumerangue then self:CheckSpawnBumerangue(dt,enemies) end
     end
@@ -1191,6 +1232,285 @@ function Player:checkEstrelaSpawn(dt, enemies)
         self:applyMultishot(spawn_single_estrela, 0)
         self.estrelas_timer = 0
     end
+end
+
+
+function Player:checkEscudoSpawn(dt)
+    if not self.escudo then return end
+    
+    self.escudo_time = self.escudo_time + dt
+    if self.escudo_time >= self.escudo_max_time then
+        self:spawnEscudo()
+        self.escudo_time = 0
+    end
+end
+
+function Player:spawnEscudo()
+    local function spawn_single_escudo(player)
+        for i = 0, player.escudo_laminas - 1 do
+            local angle = (i / player.escudo_laminas) * 2 * math.pi + player.escudo_angle
+            local x = player.x + player.width / 2 + math.cos(angle) * player.escudo_raio
+            local y = player.y + player.height / 2 + math.sin(angle) * player.escudo_raio
+            
+            table.insert(player.escudos, {
+                x = x, y = y,
+                angle = angle,
+                life_timer = player.escudo_life,
+                width = player.escudo_size,
+                height = player.escudo_size,
+                hitbox_w = player.escudo_size,
+                hitbox_h = player.escudo_size,
+                hitbox_off_x = -player.escudo_size / 2,
+                hitbox_off_y = -player.escudo_size / 2,
+                rotation = angle
+            })
+        end
+    end
+    
+    self:applyMultishot(spawn_single_escudo, 0.4)
+    self.escudo_angle = self.escudo_angle + math.rad(45)
+end
+
+function Player:updateEscudo(dt, enemies)
+    self.escudo_angle = self.escudo_angle + self.escudo_velocidade * dt
+    
+    for i = #self.escudos, 1, -1 do
+        local b = self.escudos[i]
+        local removed = false
+        
+        b.life_timer = b.life_timer - dt
+        
+        local angle = b.angle + self.escudo_velocidade * dt
+        b.x = self.x + self.width / 2 + math.cos(angle) * self.escudo_raio
+        b.y = self.y + self.height / 2 + math.sin(angle) * self.escudo_raio
+        b.rotation = angle
+        
+        if b.life_timer <= 0 then
+            table.remove(self.escudos, i)
+            removed = true
+        end
+        
+        if not removed then
+            for j = #enemies, 1, -1 do
+                local e = enemies[j]
+                if e.lifes > 0 and Utils.col(b, e) then
+                    e:takeDamage(self.escudo_damage, self)
+                    
+                    if self.veneno then e.veneno = true end
+                    if self.fogo then e.fogo = true end
+                    if self.gelo then e.gelo = true end
+                    
+                    part.add(b.x, b.y, 5, 3)
+                    
+                    local dx, dy = e.x - self.x, e.y - self.y
+                    local mag = math.sqrt(dx^2 + dy^2)
+                    if mag > 0 then
+                        e.x = e.x + (dx/mag) * 3
+                        e.y = e.y + (dy/mag) * 3
+                    end
+                end
+            end
+        end
+    end
+end
+
+function Player:drawEscudo()
+    if not self.escudo or #self.escudos == 0 then return end
+    
+    love.graphics.setColor(0, 0.8, 1, 0.7)
+    for _, b in ipairs(self.escudos) do
+        love.graphics.push()
+        love.graphics.translate(b.x, b.y)
+        love.graphics.rotate(b.rotation)
+        love.graphics.polygon("fill", 
+            0, -b.width,
+            b.width, 0,
+            0, b.width,
+            -b.width, 0
+        )
+        love.graphics.pop()
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+function Player:checkMeteorSpawn(dt)
+    if not self.meteoro then return end
+    
+    self.meteoro_time = self.meteoro_time + dt
+    if self.meteoro_time >= self.meteoro_max_time then
+        self:spawnMeteor()
+        self.meteoro_time = 0
+    end
+end
+
+function Player:spawnMeteor()
+    local function spawn_single_meteor(player)
+        for i = 1, player.meteoro_spawn_count do
+            local x = math.random(32, 512 - 32)
+            local y = -16
+            
+            table.insert(player.meteoros, {
+                x = x, y = y,
+                dx = (love.math.random() - 0.5) * 1,
+                dy = player.meteoro_fall_speed,
+                life_timer = 5,
+                width = player.meteoro_size * 2,
+                height = player.meteoro_size * 2,
+                hitbox_w = player.meteoro_size * 2,
+                hitbox_h = player.meteoro_size * 2,
+                hitbox_off_x = -player.meteoro_size,
+                hitbox_off_y = -player.meteoro_size,
+                exploded = false
+            })
+        end
+    end
+    
+    self:applyMultishot(spawn_single_meteor, 0.3)
+end
+
+function Player:updateMeteoro(dt, enemies)
+    for i = #self.meteoros, 1, -1 do
+        local m = self.meteoros[i]
+        local removed = false
+        
+        m.x = m.x + m.dx * dt * 60
+        m.y = m.y + m.dy * dt * 60
+        m.life_timer = m.life_timer - dt
+        
+        if m.y > 256 or m.life_timer <= 0 or m.exploded then
+            for j = #enemies, 1, -1 do
+                local e = enemies[j]
+                local dist_p = dist(m.x, m.y, e.x, e.y)
+                if dist_p < self.meteoro_explosion_radius and e.lifes > 0 then
+                    e:takeDamage(self.meteoro_damage, self)
+                    if self.veneno then e.veneno = true end
+                    if self.fogo then e.fogo = true end
+                    if self.gelo then e.gelo = true end
+                end
+            end
+            
+            part.add(m.x, m.y, 12, 8)
+            part.add(m.x, m.y, 8, 9)
+            
+            table.remove(self.meteoros, i)
+            removed = true
+        end
+        
+        if not removed then
+            for j = #enemies, 1, -1 do
+                local e = enemies[j]
+                if e.lifes > 0 and Utils.col(m, e) then
+                    m.exploded = true
+                    break
+                end
+            end
+        end
+    end
+end
+
+function Player:drawMeteoro()
+    if not self.meteoro or #self.meteoros == 0 then return end
+    
+    love.graphics.setColor(1, 0.5, 0, 0.8)
+    for _, m in ipairs(self.meteoros) do
+        love.graphics.circle("fill", m.x, m.y, self.meteoro_size)
+        love.graphics.setColor(1, 1, 0, 0.6)
+        love.graphics.circle("line", m.x, m.y, self.meteoro_size + 2)
+        love.graphics.setColor(1, 0.5, 0, 0.8)
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+function Player:checkTeiaSpawn(dt)
+    if not self.teia then return end
+    
+    self.teia_time = self.teia_time + dt
+    if self.teia_time >= self.teia_max_time then
+        self:spawnTeia()
+        self.teia_time = 0
+    end
+end
+
+function Player:spawnTeia()
+    local function spawn_single_teia(player)
+        table.insert(player.teias, {
+            x = player.x + player.width / 2,
+            y = player.y + player.height / 2,
+            radius = player.teia_base_radius,
+            life_timer = player.teia_life,
+            enemies_inside = {},
+            damage_timer = 0
+        })
+    end
+    
+    self:applyMultishot(spawn_single_teia, 0.5)
+end
+
+function Player:updateTeia(dt, enemies)
+    for i = #self.teias, 1, -1 do
+        local teia = self.teias[i]
+        local removed = false
+        
+        teia.life_timer = teia.life_timer - dt
+        teia.damage_timer = (teia.damage_timer or 0) + dt
+        teia.enemies_inside = {}
+        
+        local count = 0
+        for j = 1, #enemies do
+            local e = enemies[j]
+            local dist_p = dist(teia.x, teia.y, e.x, e.y)
+            if dist_p < teia.radius and e.lifes > 0 then
+                table.insert(teia.enemies_inside, e)
+                count = count + 1
+                
+                e.teia_slow = true
+                e.teia_slow_factor = self.teia_slow_factor
+                
+                if teia.damage_timer >= 0.2 then
+                    e:takeDamage(self.teia_damage, self)
+                end
+            else
+                e.teia_slow = false
+            end
+        end
+        
+        if teia.damage_timer >= 0.2 then
+            teia.damage_timer = 0
+        end
+        
+        teia.radius = math.min(
+            self.teia_max_radius,
+            self.teia_base_radius + (count * self.teia_grow_per_enemy)
+        )
+        
+        if teia.life_timer <= 0 then
+            for _, e in ipairs(teia.enemies_inside) do
+                e.teia_slow = false
+            end
+            table.remove(self.teias, i)
+            removed = true
+        end
+    end
+end
+
+function Player:drawTeia()
+    if not self.teia or #self.teias == 0 then return end
+    
+    for _, teia in ipairs(self.teias) do
+        local alpha = teia.life_timer / self.teia_life
+        love.graphics.setColor(0.3, 0.8, 1, 0.4 * alpha)
+        
+        love.graphics.circle("line", teia.x, teia.y, teia.radius)
+        
+        love.graphics.setColor(0.2, 0.7, 1, 0.3 * alpha)
+        for angle = 0, math.pi * 2, math.pi / 6 do
+            local x2 = teia.x + math.cos(angle) * teia.radius
+            local y2 = teia.y + math.sin(angle) * teia.radius
+            love.graphics.line(teia.x, teia.y, x2, y2)
+        end
+    end
+    
+    love.graphics.setColor(1, 1, 1, 1)
 end
 
 function Player:checkPlayerCollision(enemies)

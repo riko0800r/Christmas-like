@@ -122,7 +122,6 @@ local EnemyPresets = {
         demage_scale=1/200, 
         sprite=1,
     },
-
     invocador = {
         demage_preset=1,
         speed_base = 0.75,
@@ -134,14 +133,70 @@ local EnemyPresets = {
     },
     renas_especial = {
         demage_preset=1,
-        speed_base = 1.75, -- Muito rápida
+        speed_base = 1.75, 
         speed_scale = 1/16, 
         hp_base = 6.5, 
         hp_scale = 1/4, 
         demage_scale=0, 
-        sprite=1, -- Reusa sprite 1, vamos pintar de dourado no draw
-        ai_type = "flee", -- Nova IA de fugir
+        sprite=1,
+        ai_type = "flee",
         is_golden = true,
+    },
+    
+    -- ===== NOVOS INIMIGOS =====
+    spike = {
+        demage_preset = 1.5,
+        speed_base = 0.3, 
+        speed_scale = 1/16, 
+        hp_base = 4, 
+        hp_scale = 1/8,
+        demage_scale = 1/600, 
+        sprite = 1,
+        damage_radius = 18,
+        contact_damage = 0.5,
+    },
+
+    espiral = {
+        demage_preset = 1,
+        speed_base = 1.5, 
+        speed_scale = 1/16, 
+        hp_base = 3, 
+        hp_scale = 1/8,
+        demage_scale = 1/300, 
+        sprite = 1,
+        spiral_angle = 0,
+        spiral_speed = 0.8,
+        spiral_radius = 40,
+        spiral_tighten = 0.95,
+        shoot_timer = 0,
+        shoot_rate = 60 * 3,
+    },
+
+    refletor = {
+        demage_preset = 0,
+        speed_base = 0.8, 
+        speed_scale = 1/16, 
+        hp_base = 6, 
+        hp_scale = 1/8,
+        demage_scale = 0,
+        sprite = 1,
+        shield_strength = 1.0,
+        reflect_timer = 0,
+        last_reflect_angle = 0,
+    },
+
+    vampiro = {
+        demage_preset = 1.2,
+        speed_base = 1.8, 
+        speed_scale = 1/16, 
+        hp_base = 2, 
+        hp_scale = 1/8,
+        demage_scale = 1/350, 
+        sprite = 1,
+        healing_per_damage = 0.5,
+        drain_range = 16,
+        drain_timer = 0,
+        drain_rate = 60 * 0.5,
     },
 }
 
@@ -422,6 +477,116 @@ local function update_paladino(enemy, player, dt)
         if enemy.state_timer > 30 then
             changeState(enemy, "chase")
         end
+    end
+end
+
+local function update_spike(enemy, player, dt)
+    if math.random() < 0.05 then
+        local angle = love.math.random() * math.pi * 2
+        enemy.dx = math.cos(angle) * (enemy.speed * 0.3)
+        enemy.dy = math.sin(angle) * (enemy.speed * 0.3)
+    end
+    
+    enemy.x = enemy.x + enemy.dx * dt * 60
+    enemy.y = enemy.y + enemy.dy * dt * 60
+    
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+    if dist_p < enemy.damage_radius then
+        enemy.last_damage_time = enemy.last_damage_time or 0
+        enemy.last_damage_time = enemy.last_damage_time - dt
+        if enemy.last_damage_time <= 0 then
+            player:takeHit(enemy.contact_damage)
+            enemy.last_damage_time = 0.3
+        end
+        
+        local dx, dy = player.x - enemy.x, player.y - enemy.y
+        local mag = dist(0, 0, dx, dy)
+        if mag > 0 then
+            player.x = player.x + (dx/mag) * 2
+            player.y = player.y + (dy/mag) * 2
+        end
+    end
+    
+    if enemy.x < 16 then enemy.x = 16 end
+    if enemy.x > 512 - 16 then enemy.x = 512 - 16 end
+    if enemy.y < 16 then enemy.y = 16 end
+    if enemy.y > 256 - 16 then enemy.y = 256 - 16 end
+end
+
+local function update_espiral(enemy, player, dt)
+    enemy.spiral_angle = (enemy.spiral_angle or 0) + enemy.spiral_speed * dt * 60
+    local current_radius = enemy.spiral_radius * math.pow(enemy.spiral_tighten, enemy.spiral_angle / (2 * math.pi))
+    
+    local target_x = player.x + math.cos(enemy.spiral_angle) * current_radius
+    local target_y = player.y + math.sin(enemy.spiral_angle) * current_radius
+    
+    local dx = target_x - enemy.x
+    local dy = target_y - enemy.y
+    local mag = dist(0, 0, dx, dy)
+    
+    if mag > 0 then
+        enemy.dx = (dx / mag) * enemy.speed * 0.7
+        enemy.dy = (dy / mag) * enemy.speed * 0.7
+    end
+    
+    enemy.x = enemy.x + enemy.dx * dt * 60
+    enemy.y = enemy.y + enemy.dy * dt * 60
+    
+    enemy.shoot_timer = (enemy.shoot_timer or 0) + dt * 60
+    if enemy.shoot_timer >= enemy.shoot_rate then
+        for i = 0, 7 do
+            local angle = (i / 8) * 2 * math.pi
+            local speed = 1.5
+            table.insert(enemy.bullets, {
+                x = enemy.x,
+                y = enemy.y,
+                dx = math.cos(angle) * speed,
+                dy = math.sin(angle) * speed,
+                life_timer = 0
+            })
+        end
+        enemy.shoot_timer = 0
+    end
+    
+    enemy.x = clamp(16, enemy.x, 512 - 16)
+    enemy.y = clamp(16, enemy.y, 256 - 16)
+end
+
+local function update_refletor(enemy, player, dt)
+    local dx, dy = player.x - enemy.x, player.y - enemy.y
+    local mag = dist(0, 0, dx, dy)
+    if mag > 0 then
+        enemy.dx = (dx / mag) * enemy.speed * 0.5
+        enemy.dy = (dy / mag) * enemy.speed * 0.5
+    end
+    
+    enemy.x = enemy.x + enemy.dx * dt * 60
+    enemy.y = enemy.y + enemy.dy * dt * 60
+    
+    enemy.x = clamp(16, enemy.x, 512 - 16)
+    enemy.y = clamp(16, enemy.y, 256 - 16)
+end
+
+local function update_vampiro(enemy, player, dt)
+    update_chaser(enemy, player, dt, 1.8)
+    
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+    if dist_p < enemy.drain_range then
+        enemy.drain_timer = (enemy.drain_timer or 0) + dt * 60
+        if enemy.drain_timer >= enemy.drain_rate then
+            local heal_amount = enemy.demage * enemy.healing_per_damage
+            enemy.lifes = math.min(enemy.max_hp, enemy.lifes + heal_amount)
+            player:takeHit(enemy.demage * 0.3)
+            
+            for i = 1, 3 do
+                local angle = love.math.random() * math.pi * 2
+                part.add(player.x, player.y, 2, 8)
+            end
+            
+            enemy.drain_timer = 0
+        end
+    else
+        enemy.drain_timer = 0
     end
 end
 
@@ -739,6 +904,10 @@ local update_functions = {
     paladino = update_paladino,
     invocador = update_invocador,
     renas_especial = update_flee,
+    spike=update_spike,
+    espiral=update_espiral,
+    refletor=update_refletor,
+    vampiro=update_vampiro,
 }
 
 
@@ -753,6 +922,11 @@ function enemies_module.update_enemy(enemy, player, dt)
         end
     else
         enemy.tempo_pausado=clamp(0, enemy.tempo_pausado-1/60,1)
+    end
+
+    if enemy.teia_slow and enemy.teia_slow_factor then
+        enemy.dx = enemy.dx * enemy.teia_slow_factor
+        enemy.dy = enemy.dy * enemy.teia_slow_factor
     end
     
     local game_timer = _G.game_timer or 0
