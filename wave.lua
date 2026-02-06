@@ -26,9 +26,6 @@ local enemy_types = {
     "horizontal",
     "paladino",
     "invocador",
-    "spike",        -- NOVO
-    "espiral",      -- NOVO
-    "refletor",     -- NOVO
     "vampiro",      -- NOVO
 }
 

@@ -422,37 +422,39 @@ function setupButtonsForState(state)
             _G.switchState("menu")
         end)
     elseif state == "rewards" then
-        Buttons:clear()
+    Buttons:clear()
+    
+    local total_items = #Rewards.slots
+    local start_x = 10
+    local y = 60
+    local btn_w = 80
+    local btn_h = 32
+    local spacing = 4
+
+    for i, slot in ipairs(Rewards.slots) do
+        local x = start_x + (i - 1) * (btn_w + spacing)
         
-        -- Configuração da linha única
-        local total_items = #Rewards.slots
-        local start_x = 10
-        local y = 60
-        local btn_w = 64  -- Largura menor para caber 6 na tela (512px total)
-        local btn_h = 32  -- Botões quadrados ficam melhores em linha
-        local spacing = 4
+        -- ✨ NOVA: Preço dinâmico baseado no nível
+        local price = slot.item.get_price(slot.item, player)
+        local label = "$" .. price
+        if slot.bought then label = Lang.text("shop_sold") end
 
-        for i, slot in ipairs(Rewards.slots) do
-            local x = start_x + (i - 1) * (btn_w + spacing)
-            
-            local label = "$" .. slot.item.price
-            if slot.bought then label = "SOLD" end
+        Buttons:newButton(x, y, btn_w, btn_h, label, function()
+            Rewards.buy(i)
+        end, function()
+            Rewards.selected_index = i
+        end, slot.item.icon)
+    end
 
-            Buttons:newButton(x, y, btn_w, btn_h, label, function()
-                Rewards.buy(i)
-            end, function()
-                Rewards.selected_index = i
-            end, slot.item.icon)
-        end
-
-        -- Reroll centralizado embaixo
-        Buttons:newButton(128*2 - 80, 160, 160, 24, "Reroll: $"..Rewards.reroll_cost, function() 
-            Rewards.reroll() 
-        end,
-        function ()
-            
-        end,
-        DadoICON)
+    -- ✨ NOVA: Texto localizável para reroll
+    local reroll_label = Lang.text("shop_reroll", Rewards.reroll_cost)
+    -- Reroll centralizado embaixo
+    Buttons:newButton(128*2 - 80, 160, 160+8, 24, reroll_label, function() 
+        Rewards.reroll() 
+    end,
+    function ()
+    end,
+    DadoICON)
 
         Buttons:newButton(8, 160, 64, 24, Lang.text("menu_continue"), function()
             _G.switchState("play")

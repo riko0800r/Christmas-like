@@ -26,7 +26,6 @@ local db = {
         ["state_off"] = "DESLIGADO",
         
         -- QUEM FEZ?
-
         ["riko"]= "pixel art e programação por RIKO",
         ["magma"]= "musicas (OST INTEIRA) por MAGMAGUY",
 
@@ -159,82 +158,77 @@ local db = {
         ["item_boom_stat"] = "Nvl %d | Cooldown: %.1fs",
         
         ["item_lifesteal"] = "Drenagem Natalina",
-        ["item_lifesteal_desc"] = "Chance de recuperar 2 de vida ao matar inimigos!",
-        ["item_lifesteal_stat"] = "Nível %d | Chance: %.0f%% -> %.0f%%",
+        ["item_lifesteal_desc"] = "Recupera vida baseado no dano causado!",
+        ["item_lifesteal_stat"] = "Nvl %d | Cura: %.1f%% do dano",
 
-        ["item_star_name"]="Chuva estrelada",
-        ["item_star_desc"]="Marca inimigos aleatórios e faz estrelas caírem neles após 2s!",
-        ["item_star_stat"] = "Nivel %d | Quantidade: %.1f",
+        ["item_multishot"] = "Rajada Glacial",
+        ["item_multishot_desc"] = "Chance de disparar múltiplos tiros!",
+        ["item_multishot_stat"] = "Nível %d | Chance: %.0f%% → %.0f%% | Extra: %d → %d",
+
+        ["item_explosion"] = "Presente Explosivo",
+        ["item_explosion_desc"] = "Inimigos mortos explodem causando dano em área!",
+        ["item_explosion_stat"] = "Nível %d | Dano: %.0f%% → %.0f%% do dano | Raio: %dpx → %dpx",
+
+        ["item_star_name"]="Chuva Estrelada",
+        ["item_star_desc"]="Faz chover estrelas em inimigos aleatórios!",
+        ["item_star_stat"] = "Nvl %d | Qtd: %.1fs",
+
         -- SINERGIAS
-        ["synergy_ring_name"] = "Anel de renas",
+        ["synergy_ring_name"] = "Anel de Rena",
         ["synergy_ring_desc"] = "Cria renas que atiram bolas de neve!",
-        ["synergy_ring_stat"] = "Renas ativas | Dano: %.2f",
-        ["synergy_rock_name"] = "Pedras que seguem",
+        ["synergy_ring_stat"] = "Renas Ativas | Dano: %.2f",
+        ["synergy_rock_name"] = "Pedras Perseguidoras",
         ["synergy_rock_desc"] = "Pedras do céu que perseguem inimigos!",
         ["synergy_rock_stat"] = "Dano: %.2f",
-        ["synergy_tox_name"] = "Combo tóxico",
-        ["synergy_tox_desc"] = "Área de dano em volta dos inimigos!",
+        ["synergy_tox_name"] = "Combo Tóxico",
+        ["synergy_tox_desc"] = "Área de dano ao redor de inimigos!",
         ["synergy_tox_stat"] = "Raio de dano tóxico",
-        
+
         ["pause_title"]="PAUSADO",
-        ["pause_sub"]  ="Aperte ESC para voltar",
+        ["pause_sub"]  ="Aperte Esc para despausar o jogo.",
+        
+        ["menu_continue_run"] = "Continuar Partida (Onda %d)",
+        ["menu_record"]       = "Melhor: Onda %d | Tempo: %s",
+        ["menu_no_record"]    = "Sem Recorde",
 
-        ["menu_continue_run"] = "Continuar Run (Onda %d)", -- New
-        ["menu_record"]       = "Recorde: Onda %d | Tempo: %s", -- New
-        ["menu_no_record"]    = "Sem Recorde", -- New
-
-        ["shop_title"] = "LOJA NATALINA",
-        ["shop_reroll"] = "Rerolar Loja: $%d",
+        ["shop_title"] = "LOJA DE NATAL",
+        ["shop_reroll"] = "Trocar itens: $%d",
         ["shop_free"] = "GRÁTIS",
         ["shop_sold"] = "VENDIDO",
-        ["shop_poor"] = "Sem dinheiro!",
+        ["shop_poor"] = "Dinheiro insuficiente!",
         ["hud_money"] = "$%d",
-        
-        -- NOVOS ITENS E RELIQUIAS
-        ["item_potion"] = "Poção de Vida",
-        ["item_potion_desc"] = "Uso único: Cura 5 de vida instantaneamente.",
-        ["item_bomb"] = "Bomba natalina",
-        ["item_bomb_desc"] = "Uso único: Explode todos os inimigos da tela.",
-        
-        ["relic_greed"] = "A Ganância",
-        ["relic_greed_desc"] = "Inimigos dropam mais moedas, mas têm mais vida.",
-        ["relic_boots"] = "Botas Mágicas",
-        ["relic_boots_desc"] = "Aumenta velocidade base permanentemente.",
-        ["relic_glass"] = "Canhão de Vidro",
-        ["relic_glass_desc"] = "Dobre seu dano, mas reduza sua vida máxima pela metade.",
-        
-        ["item_crit_name"] = "Precisão Mortal",
-        ["item_crit_desc"] = "Aumenta chance e dano crítico",
-        ["item_atkspd_name"] = "Velocidade de Ataque",
-        ["item_atkspd_desc"] = "Reduz cooldown de todos os ataques",
-        ["item_shield_name"] = "Escudo Natalino",
-        ["item_shield_desc"] = "Chance de bloquear dano completamente",
-        ["item_multishot_name"] = "Rajada Glacial",
-        ["item_multishot_desc"] = "Chance de disparar projéteis extras",
-        ["item_explode_name"] = "Presente Explosivo",
-        ["item_explode_desc"] = "Inimigos explodem ao morrer",
-        ["relic_luck_name"] = "Sorte Dourada",
-        ["relic_luck_desc"] = "Dobra drops raros e melhora recompensas",
 
-        ["relic_coin_magnet"] = "Imã de moedas.",
-        ["relic_coin_magnet_desc"] = "Alcance de coleta de moedas maior."
+        -- RELÍQUIAS
+        ["relic_greed"] = "Ganância",
+        ["relic_greed_desc"] = "Inimigos soltam mais moedas, mas têm mais HP.",
+        ["relic_coin_magnet"] = "Imã de Moedas",
+        ["relic_coin_magnet_desc"] = "Moedas são puxadas de longe.",
+        ["relic_boots"] = "Botas Mágicas",
+        ["relic_boots_desc"] = "Aumenta velocidade permanentemente.",
+        ["relic_glass"] = "Canhão de Vidro",
+        ["relic_glass_desc"] = "Dobra o dano, mas reduz HP máximo.",
+
+        -- ITENS DE USO ÚNICO
+        ["item_potion"] = "Poção de Vida",
+        ["item_potion_desc"] = "Uso único: Cura 5 HP instantaneamente.",
+        ["item_bomb"] = "Bomba de Natal",
+        ["item_bomb_desc"] = "Uso único: Explode todos inimigos na tela.",
     },
+    
     ["en"] = {
         -- MENU
-        ["menu_play"] = "Play",
+        ["menu_play"]     = "Play",
         ["menu_tutorial"] = "Tutorial",
-        ["menu_exit"] = "Exit",
-        ["menu_back"] = "Back to Menu",
+        ["menu_exit"]     = "Exit",
+        ["intro_review"]  = "Intro again",
+        ["menu_back"]     = "Back to Menu",
         ["menu_continue"] = "Continue",
-        ["intro_review"]="Back to Intro",
-        ["title_main"] = "Christmas-like",
+        ["title_main"]    = "Christmas-like",
+        ["menu_quem_fez"] = "Credits",
 
-        ["menu_quem_fez"] = "Who made the game?",
-
-        --  MENU OPTIONS
         ["menu_options"] = "Settings",
         ["opt_music"] = "Music",
-        ["opt_sfx"] = "SFX",
+        ["opt_sfx"] = "Sound Effects",
         ["opt_timer"] = "Speedrun Timer: %s",
         ["opt_fullscreen"] = "Fullscreen: %s",
         ["opt_lang"] = "Language: %s",
@@ -242,33 +236,33 @@ local db = {
         ["state_on"] = "ON",
         ["state_off"] = "OFF",
         
-        ["riko"]= "pixel arts and programming by RIKO",
-        ["magma"]= "Songs (THE ENTIRE OST) by MAGMAGUY",
-        
-        ["win_title"] = "YOU WON!",
+        -- CREDITS
+        ["riko"]= "pixel art and programming by RIKO",
+        ["magma"]= "music (ENTIRE OST) by MAGMAGUY",
 
-        -- DIFICULDADE
-        ["diff_select"] = "Select Difficulty:",
-        ["diff_easy"] = "Easy [Noobs only]",
-        ["diff_normal"] = "Normal [Standard Experience]",
-        ["diff_hard"] = "Hard [Frequent Bosses]",
-        ["diff_boss"] = "Boss Rush [Only Bosses]",
-        ["diff_insane"] = "Madness [Ends in wave 32]",
-        ["diff_impossible"] = "Hardcore [Ends in wave 64]",
+        ["win_title"] = "YOU WON!",
+        -- DIFFICULTY
+        ["diff_select"] = "Choose difficulty:",
+        ["diff_easy"] = "Easy [For newcomers]",
+        ["diff_normal"] = "Normal [Standard experience]",
+        ["diff_hard"] = "Hard [More frequent bosses]",
+        ["diff_boss"] = "Boss Rush [Only bosses]",
+        ["diff_insane"] = "Insane [Reach wave 32]",
+        ["diff_impossible"] = "Impossible [Reach wave 64]",
 
         -- INTRO
-        ["intro_1"] = "story: you are an evil reindeer who wants to destroy the world",
-        ["intro_2"] = "but the good reindeers didn't like that",
+        ["intro_1"] = "Story: You are an evil reindeer who wants to destroy the world",
+        ["intro_2"] = "but the good reindeers, didn't like that",
         ["intro_3"] = "and decided to fight against it.",
-        ["intro_4"] = "so you will fight until the end of christmas.",
-        ["intro_skip"] = "Press X or Enter",
+        ["intro_4"] = "and then you will fight until the end of Christmas.",
+        ["intro_skip"] = "press X or enter",
 
         -- TUTORIAL
         ["tut_title"] = "=== TUTORIAL ===",
-        ["tut_controls"] = "CONTROLS :",
+        ["tut_controls"] = "CONTROLS:",
         ["tut_move"] = "- Arrows or WASD : Move",
         ["tut_confirm"] = "- X or Enter : Confirm",
-        ["tut_obj_title"] = "OBJECTIVES :",
+        ["tut_obj_title"] = "OBJECTIVES:",
         ["tut_obj_1"] = "Survive until wave 16!",
         ["tut_obj_2"] = "Choose rewards between waves",
         ["tut_obj_3"] = "Get stronger every round!",
@@ -289,7 +283,7 @@ local db = {
         ["stat_time"] = "TIME: %ds",
         ["stat_total"] = "TOTAL: %d dmg",
 
-        -- PERSONAGENS
+        -- CHARACTERS
         ["char_select_title"] = "CHOOSE YOUR CHARACTER",
         ["char_random"] = "Random Character",
         ["char_normal"] = "Normal Reindeer",
@@ -305,7 +299,7 @@ local db = {
         ["char_rock"] = "Rock Reindeer",
         ["char_rock_desc"] = "Starts with Heaven Rocks\nrocks fall (3X dmg), bad aim.",
         ["char_lava"] = "Golden Reindeer",
-        ["char_lava_desc"] = "Starts with Golden gitfs\nRing protects and attacks enemies.",
+        ["char_lava_desc"] = "Starts with Golden gifts\nRing protects and attacks enemies.",
         ["char_gift"] = "Precious Gift",
         ["char_gift_desc"] = "Starts with Precious Gems\nThrows gems upwards (half dmg)",
         ["char_mystery"] = "Mystery Reindeer",
@@ -315,15 +309,15 @@ local db = {
         ["char_tree_desc"]="Starts with Spiked Wreath\nCircular aura of damage around the player.",
 
         ["char_gift2"]="Bad Gift",
-        ["char_gift2_desc"]="Starts with Christmas Boomerang\nHe goes and comes back to you, leaving gifts on his return.",
+        ["char_gift2_desc"]="Starts with Christmas Boomerang\nGoes and comes back leaving gifts on return.",
 
         ["char_atirador"]="Sniper Reindeer",
         ["char_atirador_desc"]="Starts with a snowball\nSnowball: a shot that follows enemies.",
 
-        ["char_estrela_natalina"]="starry gift",
+        ["char_estrela_natalina"]="Starry Gift",
         ["char_estrela_natalina_desc"]="Starts with fallen stars\nMakes stars fall on random enemies!",
 
-        -- ITENS / RECOMPENSAS
+        -- ITEMS / REWARDS
         ["reward_choose"] = "Choose your reward:",
         ["item_life"] = "Health",
         ["item_life_desc"] = "Increases max health!",
@@ -338,10 +332,10 @@ local db = {
         ["item_new_desc"] = "Rerolls rewards!",
         ["item_new_stat"] = "Swaps current 3 options.",
         ["item_snow"] = "Snowball",
-        ["item_snow_desc"] = "shoot snowballs that follow the enemies!",
+        ["item_snow_desc"] = "Shoot snowballs that follow enemies!",
         ["item_snow_stat"] = "Level %d | Dmg: %.2f -> %.2f | Time: %.2fs -> %.2fs",
         ["item_ice"] = "Ice Block",
-        ["item_ice_desc"] = "shoot ice blocks in a circular shape!",
+        ["item_ice_desc"] = "Shoot ice blocks in a circular shape!",
         ["item_ice_stat"] = "Level %d | Dmg: %.2f -> %.2f | Time: %.2fs -> %.2fs",
         ["item_rock"] = "Heaven Rocks",
         ["item_rock_desc"] = "Rocks fall from sky (3x dmg)!",
@@ -373,14 +367,26 @@ local db = {
         ["item_garlic_stat"] = "Lvl %d | Radius: %d | Dmg: %.1f",
         
         ["item_boom"] = "Christmas Boomerang",
-        ["item_boom_desc"] = "He goes and comes back to you, leaving gifts on his return.",
+        ["item_boom_desc"] = "Goes and comes back leaving gifts on return.",
         ["item_boom_stat"] = "Lvl %d | Cooldown: %.1fs",
         
-        ["item_star_name"]="fallen stars",
+        ["item_lifesteal"] = "Christmas Lifesteal",
+        ["item_lifesteal_desc"] = "Recovers health based on damage dealt!",
+        ["item_lifesteal_stat"] = "Lvl %d | Heal: %.1f%% of damage",
+
+        ["item_multishot"] = "Glacial Burst",
+        ["item_multishot_desc"] = "Chance to shoot multiple projectiles!",
+        ["item_multishot_stat"] = "Level %d | Chance: %.0f%% → %.0f%% | Extra: %d → %d",
+
+        ["item_explosion"] = "Explosive Gift",
+        ["item_explosion_desc"] = "Dead enemies explode dealing area damage!",
+        ["item_explosion_stat"] = "Level %d | Dmg: %.0f%% → %.0f%% of damage | Radius: %dpx → %dpx",
+
+        ["item_star_name"]="Fallen Stars",
         ["item_star_desc"]="Makes stars fall on random enemies!",
         ["item_star_stat"] = "Lvl %d | Qty: %.1fs",
 
-        -- SINERGIAS
+        -- SYNERGIES
         ["synergy_ring_name"] = "Reindeer Ring",
         ["synergy_ring_desc"] = "Creates reindeers that shoot snowballs!",
         ["synergy_ring_stat"] = "Active Reindeers | Dmg: %.2f",
@@ -394,9 +400,9 @@ local db = {
         ["pause_title"]="PAUSED",
         ["pause_sub"]  ="Press Esc to unpause the game.",
         
-        ["menu_continue_run"] = "Continue Run (Wave %d)", -- New
-        ["menu_record"]       = "Best: Wave %d | Time: %s", -- New
-        ["menu_no_record"]    = "No Record", -- New
+        ["menu_continue_run"] = "Continue Run (Wave %d)",
+        ["menu_record"]       = "Best: Wave %d | Time: %s",
+        ["menu_no_record"]    = "No Record",
 
         ["shop_title"] = "CHRISTMAS SHOP",
         ["shop_reroll"] = "Reroll Shop: $%d",
@@ -405,18 +411,21 @@ local db = {
         ["shop_poor"] = "Not enough cash!",
         ["hud_money"] = "$%d",
 
-        -- NEW ITEMS AND RELICS
-        ["item_potion"] = "Health Potion",
-        ["item_potion_desc"] = "One use: Heals 5 HP instantly.",
-        ["item_bomb"] = "Christmas Bomb",
-        ["item_bomb_desc"] = "One use: Explodes all enemies on screen.",
-        
-        ["relic_greed"] = "The greed",
+        -- RELICS
+        ["relic_greed"] = "Greed",
         ["relic_greed_desc"] = "Enemies drop more coins, but have more HP.",
+        ["relic_coin_magnet"] = "Coin Magnet",
+        ["relic_coin_magnet_desc"] = "Coins are pulled from far away.",
         ["relic_boots"] = "Magic Boots",
         ["relic_boots_desc"] = "Increases movement speed permanently.",
         ["relic_glass"] = "Glass Cannon",
         ["relic_glass_desc"] = "Double your damage, but halve your max HP.",
+
+        -- SINGLE USE ITEMS
+        ["item_potion"] = "Health Potion",
+        ["item_potion_desc"] = "One use: Heals 5 HP instantly.",
+        ["item_bomb"] = "Christmas Bomb",
+        ["item_bomb_desc"] = "One use: Explodes all enemies on screen.",
     }
 }
 

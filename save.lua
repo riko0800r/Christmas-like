@@ -3,16 +3,11 @@ local Seed = require("seed")
 local Wave = require("wave")
 local Lang = require("lang")
 local Player = require("player")
-local Enemies = require("enemies") -- Need to reset enemies on load
+local Enemies = require("enemies")
+local Rewards = require("rewards")
 
 local Save = {}
 
--- Structure:
--- Save.data = {
---    settings = { language, volumes, etc },
---    records = { best_wave, best_time },
---    run = nil (or table with player, wave, etc)
--- }
 Save.data = {
     settings = {
         language = "pt-br",
@@ -29,29 +24,20 @@ Save.data = {
     run = nil
 }
 
--- Helper to remove userdata (images) before saving
 local function stripUserdata(table_obj, seen)
-    -- Se não for tabela, retorna o valor direto
     if type(table_obj) ~= "table" then return table_obj end
     
-    -- Inicializa a tabela de visitados
     seen = seen or {}
     
-    -- Se já visitamos esta tabela neste caminho, é um CICLO. Retorna nil para quebrar o loop.
     if seen[table_obj] then return nil end
     
-    -- Marca como visitado
     seen[table_obj] = true
     
     local copy = {}
     for k, v in pairs(table_obj) do
-        -- O "lume" só consegue salvar chaves que são String ou Number.
-        -- Se a chave for uma tabela ou userdata, ignoramos para não crashar.
         if type(k) == "string" or type(k) == "number" then
-            -- Ignora funções e userdata (imagens/sons)
             if type(v) ~= "function" and type(v) ~= "userdata" then
                 if type(v) == "table" then
-                    -- Recursão passando o histórico de 'seen'
                     copy[k] = stripUserdata(v, seen)
                 else
                     copy[k] = v
@@ -60,7 +46,6 @@ local function stripUserdata(table_obj, seen)
         end
     end
     
-    -- Remove da lista de visitados ao sair (para permitir estruturas válidas que se repetem)
     seen[table_obj] = nil
     
     return copy
@@ -71,7 +56,6 @@ function Save.load()
         local content = love.filesystem.read("savedata_v2.txt")
         local loaded = lume.deserialize(content)
         
-        -- Merge loaded data into default structure (safeguard for new fields)
         if loaded.settings then 
             for k,v in pairs(loaded.settings) do Save.data.settings[k] = v end
         end
@@ -83,7 +67,6 @@ function Save.load()
         end
     end
 
-    -- Apply Settings immediately
     Lang.setLanguage(Save.data.settings.language)
     if _G.GameConfig then
         _G.GameConfig.musica_antiga = Save.data.settings.OldMusic
@@ -112,17 +95,12 @@ end
 
 function Save.checkRecord(wave, time)
     local changed = false
-    -- Logic: Higher wave is better. If same wave, lower time is better.
     if wave > (Save.data.records.best_wave or 0) then
         Save.data.records.best_wave = wave
         Save.data.records.best_time = time
         changed = true
     elseif wave == (Save.data.records.best_wave or 0) then
-        if time > (Save.data.records.best_time or 0) then -- Actually longer time survived is usually better in survival? 
-            -- If goal is speedrun to finish: Lower is better. 
-            -- If goal is survival: Higher is better.
-            -- Based on "Speedrun Timer" option, let's assume specific levels speedrun.
-            -- But for endless, Time is score. Let's just save max time.
+        if time > (Save.data.records.best_time or 0) then
             Save.data.records.best_time = time
             changed = true
         end
@@ -131,10 +109,8 @@ function Save.checkRecord(wave, time)
     if changed then Save.write() end
 end
 
--- Call this when closing the game or returning to menu alive
 function Save.saveRunState()
     if _G.player and _G.player.lifes > 0 and not _G.player.dead then
-        -- Usando pcall interno para garantir que erro de save não crashe o jogo
         local status, err = pcall(function()
             local run_data = {
                 player = stripUserdata(_G.player), 
@@ -149,6 +125,9 @@ function Save.saveRunState()
                     timer = _G.game_timer,
                     seed = Seed.current,
                     mode = _G.game_mode
+                },
+                rewards_info = {
+                    reroll_cost = Rewards.reroll_cost
                 }
             }
             Save.data.run = run_data
@@ -161,7 +140,6 @@ function Save.saveRunState()
     end
 end
 
--- Call this when dying or winning (run ends)
 function Save.deleteRun()
     Save.data.run = nil
     Save.write()
@@ -176,12 +154,10 @@ function Save.loadRun()
     
     local r = Save.data.run
     
-    -- Restore Globals
     Seed.set(r.game_state.seed)
     _G.game_timer = r.game_state.timer
     _G.game_mode = r.game_state.mode
     
-    -- Restore Wave
     Wave.current_wave = r.wave_info.current
     Wave.wave_final = r.wave_info.final
     Wave.infinito = r.wave_info.infinito
@@ -189,34 +165,33 @@ function Save.loadRun()
     Wave.active = true
     Wave.waiting_next = false 
     
-    -- Restore Player
-    _G.player = Player.new() -- Create fresh to get methods
+    -- Restaurar reroll_cost se salvo
+    if r.rewards_info and r.rewards_info.reroll_cost then
+        Rewards.reroll_cost = r.rewards_info.reroll_cost
+    else
+        Rewards.reroll_cost = 10  -- Valor padrão se não encontrado
+    end
     
-    -- Overwrite attributes with saved data
+    _G.player = Player.new()
+    
     for k, v in pairs(r.player) do
         _G.player[k] = v
     end
     
-    -- CRITICAL: Re-load images/sprites based on the restored ID/Type
-    -- We assume Characters module can help or we do it manually
     local Characters = require("characters")
-    Characters.load(_G.player) -- Load generic sheets
+    Characters.load(_G.player)
     
-    -- Re-apply specific character sprite quad
-    -- Since we saved 'tipo_jogador', we can reconstruct the quad
     if _G.player.tipo_jogador then
-        -- Refresh sprites quads
-         _G.player.sprite = {}
-         local sheet = love.graphics.newImage("assets/spritePersonagens.png")
-         for i=0,12 do
+        _G.player.sprite = {}
+        local sheet = love.graphics.newImage("assets/spritePersonagens.png")
+        for i=0,12 do
             _G.player.sprite[i+1] = love.graphics.newQuad(i*8, 0, 8, 8, sheet:getDimensions())
-         end
+        end
     end
     
-    -- Reset Enemies (Cleaner than saving them)
     _G.player.pending_stars = {}
     Enemies.reset()
-    Wave.spawn_wave() -- Spawn the current wave again
+    Wave.spawn_wave()
     
     return true
 end

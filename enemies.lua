@@ -142,19 +142,6 @@ local EnemyPresets = {
         ai_type = "flee",
         is_golden = true,
     },
-    
-    -- ===== NOVOS INIMIGOS =====
-    spike = {
-        demage_preset = 1.5,
-        speed_base = 0.3, 
-        speed_scale = 1/16, 
-        hp_base = 4, 
-        hp_scale = 1/8,
-        demage_scale = 1/600, 
-        sprite = 1,
-        damage_radius = 18,
-        contact_damage = 0.5,
-    },
 
     espiral = {
         demage_preset = 1,
@@ -163,40 +150,40 @@ local EnemyPresets = {
         hp_base = 3, 
         hp_scale = 1/8,
         demage_scale = 1/300, 
-        sprite = 1,
+        sprite = 15,
         spiral_angle = 0,
         spiral_speed = 0.8,
         spiral_radius = 40,
         spiral_tighten = 0.95,
         shoot_timer = 0,
-        shoot_rate = 60 * 3,
+        shoot_rate = 30 * 2,
     },
 
     refletor = {
         demage_preset = 0,
-        speed_base = 0.8, 
+        speed_base = 0.75, 
         speed_scale = 1/16, 
         hp_base = 6, 
         hp_scale = 1/8,
         demage_scale = 0,
-        sprite = 1,
+        sprite = 14,
         shield_strength = 1.0,
         reflect_timer = 0,
         last_reflect_angle = 0,
     },
 
     vampiro = {
-        demage_preset = 1.2,
-        speed_base = 1.8, 
+        demage_preset = 1,
+        speed_base = 1.5, 
         speed_scale = 1/16, 
-        hp_base = 2, 
+        hp_base = 2.75,
         hp_scale = 1/8,
         demage_scale = 1/350, 
-        sprite = 1,
-        healing_per_damage = 0.5,
-        drain_range = 16,
+        sprite = 15,
+        healing_per_damage = 0.4,
+        drain_range = 20,
         drain_timer = 0,
-        drain_rate = 60 * 0.5,
+        drain_rate = 60 * 0.75,
     },
 }
 
@@ -514,61 +501,231 @@ local function update_spike(enemy, player, dt)
 end
 
 local function update_espiral(enemy, player, dt)
-    enemy.spiral_angle = (enemy.spiral_angle or 0) + enemy.spiral_speed * dt * 60
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+    
+    -- ======================== MOVIMENTO ========================
+    -- Aumenta a velocidade de rotação conforme fica mais perto
+    local speed_multiplier = 1 + (1 - math.min(1, dist_p / 200)) * 0.5
+    enemy.spiral_angle = (enemy.spiral_angle or 0) + enemy.spiral_speed * dt * 60 * speed_multiplier
+    
+    -- O raio da espiral diminui gradualmente (aperta)
     local current_radius = enemy.spiral_radius * math.pow(enemy.spiral_tighten, enemy.spiral_angle / (2 * math.pi))
     
+    -- Calcula a posição alvo em torno do player
     local target_x = player.x + math.cos(enemy.spiral_angle) * current_radius
     local target_y = player.y + math.sin(enemy.spiral_angle) * current_radius
     
+    -- Movimento suave para a posição alvo
     local dx = target_x - enemy.x
     local dy = target_y - enemy.y
     local mag = dist(0, 0, dx, dy)
     
     if mag > 0 then
-        enemy.dx = (dx / mag) * enemy.speed * 0.7
-        enemy.dy = (dy / mag) * enemy.speed * 0.7
+        enemy.dx = (dx / mag) * enemy.speed
+        enemy.dy = (dy / mag) * enemy.speed
     end
     
     enemy.x = enemy.x + enemy.dx * dt * 60
     enemy.y = enemy.y + enemy.dy * dt * 60
     
+    -- ======================== ATAQUE ========================
+    -- Define a fase baseado na distância ao player
+    local phase = 1
+    if dist_p < 128 then phase = 2 end
+    if dist_p < 64 then phase = 3 end
+    
+    enemy.current_phase = phase
+    
+    -- Timer de tiro
     enemy.shoot_timer = (enemy.shoot_timer or 0) + dt * 60
-    if enemy.shoot_timer >= enemy.shoot_rate then
-        for i = 0, 7 do
-            local angle = (i / 8) * 2 * math.pi
-            local speed = 1.5
-            table.insert(enemy.bullets, {
-                x = enemy.x,
-                y = enemy.y,
-                dx = math.cos(angle) * speed,
-                dy = math.sin(angle) * speed,
-                life_timer = 0
-            })
+    local shoot_rate = enemy.shoot_rate / phase  -- Mais rápido em fases altas
+    
+    if enemy.shoot_timer >= shoot_rate then
+        -- Padrão de tiro muda por fase
+        if phase == 1 then
+            -- FASE 1: 8 tiros simples em círculo
+            for i = 0, 7 do
+                local angle = (i / 8) * 2 * math.pi
+                local speed = 1.5
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(angle) * speed,
+                    dy = math.sin(angle) * speed,
+                    life_timer = 0
+                })
+            end
+            
+        elseif phase == 2 then
+            -- FASE 2: 8 tiros duplos (dois anéis com delay)
+            for i = 0, 7 do
+                local angle = (i / 8) * 2 * math.pi
+                local speed = 1.5
+                
+                -- Primeiro anel
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(angle) * speed,
+                    dy = math.sin(angle) * speed,
+                    life_timer = 0
+                })
+                
+                -- Segundo anel (offset angular)
+                local offset_angle = angle + (math.pi / 8)
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(offset_angle) * speed,
+                    dy = math.sin(offset_angle) * speed,
+                    life_timer = 0
+                })
+            end
+            
+        elseif phase == 3 then
+            -- FASE 3: 8 tiros triplos com padrão alternado
+            for i = 0, 7 do
+                local angle = (i / 8) * 2 * math.pi
+                local speed = 1.5
+                
+                -- 1º anel
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(angle) * speed,
+                    dy = math.sin(angle) * speed,
+                    life_timer = 0
+                })
+                
+                -- 2º anel (offset +45°)
+                local offset1 = angle + (math.pi / 4)
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(offset1) * speed,
+                    dy = math.sin(offset1) * speed,
+                    life_timer = 0
+                })
+                
+                -- 3º anel (offset -45°)
+                local offset2 = angle - (math.pi / 4)
+                table.insert(enemy.bullets, {
+                    x = enemy.x,
+                    y = enemy.y,
+                    dx = math.cos(offset2) * speed,
+                    dy = math.sin(offset2) * speed,
+                    life_timer = 0
+                })
+            end
         end
+        
         enemy.shoot_timer = 0
     end
     
+    -- Keep dentro dos limites
     enemy.x = clamp(16, enemy.x, 512 - 16)
     enemy.y = clamp(16, enemy.y, 256 - 16)
 end
 
 local function update_refletor(enemy, player, dt)
-    local dx, dy = player.x - enemy.x, player.y - enemy.y
-    local mag = dist(0, 0, dx, dy)
-    if mag > 0 then
-        enemy.dx = (dx / mag) * enemy.speed * 0.5
-        enemy.dy = (dy / mag) * enemy.speed * 0.5
+    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
+    
+    -- ======================== ESTADO E FASE ========================
+    -- Calcula o estado de dano (0 = cheio, 1 = morrendo)
+    local health_ratio = enemy.lifes / enemy.max_hp
+    
+    -- Define a fase baseado no HP
+    local phase = 1
+    if health_ratio < 0.75 then phase = 2 end  -- Danificado
+    if health_ratio < 0.5 then phase = 3 end   -- Muito danificado
+    if health_ratio < 0.25 then phase = 4 end  -- Crítico
+    
+    enemy.current_phase = phase
+    
+    -- ======================== MOVIMENTO ========================
+    -- Comportamento defensivo: tenta manter distância, anda em volta
+    
+    if phase == 1 then
+        -- Fase 1: Movimento lento e padrão defensivo
+        if dist_p < 120 then
+            -- Se muito perto, foge
+            local dx, dy = enemy.x - player.x, enemy.y - player.y
+            local mag = dist(0, 0, dx, dy)
+            if mag > 0 then
+                enemy.dx = (dx / mag) * enemy.speed * 0.6
+                enemy.dy = (dy / mag) * enemy.speed * 0.6
+            end
+        else
+            -- Movimento errático defensivo
+            if not enemy.wander_timer or enemy.wander_timer <= 0 then
+                local angle = love.math.random() * 2 * math.pi
+                enemy.wander_dx = math.cos(angle) * enemy.speed * 0.5
+                enemy.wander_dy = math.sin(angle) * enemy.speed * 0.5
+                enemy.wander_timer = 120  -- Muda direção a cada 2 segundos
+            end
+            enemy.dx = enemy.wander_dx
+            enemy.dy = enemy.wander_dy
+            enemy.wander_timer = (enemy.wander_timer or 0) - 1
+        end
+        
+    elseif phase == 2 or phase == 3 then
+        -- Fase 2-3: Mais agressivo, tenta ficar próximo mas defensivo
+        if dist_p > 80 then
+            -- Aproxima-se um pouco
+            local dx, dy = player.x - enemy.x, player.y - enemy.y
+            local mag = dist(0, 0, dx, dy)
+            if mag > 0 then
+                enemy.dx = (dx / mag) * enemy.speed * 0.7
+                enemy.dy = (dy / mag) * enemy.speed * 0.7
+            end
+        else
+            -- Circula ao redor do player
+            if not enemy.circle_angle then enemy.circle_angle = 0 end
+            enemy.circle_angle = enemy.circle_angle + 2 * dt * 60
+            
+            local circle_radius = 100
+            enemy.dx = math.cos(enemy.circle_angle) * enemy.speed * 0.8
+            enemy.dy = math.sin(enemy.circle_angle) * enemy.speed * 0.8
+        end
+        
+    else -- phase == 4
+        -- Fase 4 (Crítico): Muito agressivo, praticamente anda em volta do player
+        if not enemy.aggressive_angle then enemy.aggressive_angle = 0 end
+        enemy.aggressive_angle = enemy.aggressive_angle + 4 * dt * 60
+        
+        local circle_radius = 80
+        local target_x = player.x + math.cos(enemy.aggressive_angle) * circle_radius
+        local target_y = player.y + math.sin(enemy.aggressive_angle) * circle_radius
+        
+        local dx = target_x - enemy.x
+        local dy = target_y - enemy.y
+        local mag = dist(0, 0, dx, dy)
+        
+        if mag > 0 then
+            enemy.dx = (dx / mag) * enemy.speed
+            enemy.dy = (dy / mag) * enemy.speed
+        end
     end
     
+    -- Aplica movimento
     enemy.x = enemy.x + enemy.dx * dt * 60
     enemy.y = enemy.y + enemy.dy * dt * 60
     
+    -- ======================== ESCUDO/REFLEXÃO ========================
+    -- O escudo fica mais fraco conforme toma dano
+    local shield_strength = enemy.shield_strength * health_ratio
+    enemy.current_shield_strength = shield_strength
+    
+    -- Timer de recarga (depois de refletir muito, precisa "carregar")
+    enemy.reflect_cooldown = (enemy.reflect_cooldown or 0) - dt * 60
+    
+    -- Keep dentro dos limites
     enemy.x = clamp(16, enemy.x, 512 - 16)
     enemy.y = clamp(16, enemy.y, 256 - 16)
 end
 
 local function update_vampiro(enemy, player, dt)
-    update_chaser(enemy, player, dt, 1.8)
+    update_chaser(enemy, player, dt, 0.75)
     
     local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
     if dist_p < enemy.drain_range then
@@ -576,10 +733,9 @@ local function update_vampiro(enemy, player, dt)
         if enemy.drain_timer >= enemy.drain_rate then
             local heal_amount = enemy.demage * enemy.healing_per_damage
             enemy.lifes = math.min(enemy.max_hp, enemy.lifes + heal_amount)
-            player:takeHit(enemy.demage * 0.3)
+            player:takeHit(enemy.demage)
             
             for i = 1, 3 do
-                local angle = love.math.random() * math.pi * 2
                 part.add(player.x, player.y, 2, 8)
             end
             

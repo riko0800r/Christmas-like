@@ -2,7 +2,7 @@
 local Utils   = require('utils')
 local Buttons = require("button")
 local part    = require("part_rewards")
-local Lang    = require('lang') -- <<<
+local Lang    = require('lang')
 
 local addpart = part.spawn
 
@@ -15,8 +15,8 @@ Rewards.current_rewards = {}
 
 local presente=love.graphics.newImage("assets/Presente.png")
 local Lava=love.graphics.newImage("assets/Lava.png")
-local neve=love.graphics.newImage("assets/neve.png")
-local pedras=love.graphics.newImage("assets/pedra.png")
+local neve=love.graphics.newImage("assets/NeveICON.png")
+local pedras=love.graphics.newImage("assets/pedraICON.png")
 local sombriosSprite=love.graphics.newImage("assets/PreciosaICON.png")
 local VenenoSprite=love.graphics.newImage("assets/VenenoMortal.png")
 local Vida=love.graphics.newImage("assets/VidaICON.png")
@@ -27,7 +27,21 @@ local Gelo=love.graphics.newImage("assets/GeloICON.png")
 local Vitalidade=love.graphics.newImage("assets/VitalidadeICON.png")
 local Imobilizador=love.graphics.newImage("assets/ImobilizadorICON.png")
 local NovosItens=love.graphics.newImage("assets/NovosItensICON.png")
-local LifestealIcon = love.graphics.newImage("assets/VidaICON.png") -- Use o ícone de vida
+local LifestealIcon = love.graphics.newImage("assets/VidaDrenagemICON.png")
+local Icon_Guirlanda = love.graphics.newImage("assets/GuirlandaICON.png")
+local Icon_Bumerang = love.graphics.newImage("assets/BumerangICON.png")
+local Icon_Estrelas = love.graphics.newImage("assets/EstrelaICON.png")
+
+-- Função para calcular preço dinâmico baseado no nível
+local function getItemPrice(item, player)
+    local level = player.item_levels[item.id] or 0
+    -- Preço base + (5 * nível do item)
+    -- Nível 0: $5, Nível 1: $10, Nível 2: $15, etc
+    if item.base_price then
+        return item.base_price + (5 * level)
+    end
+    return 5 + (5 * level)
+end
 
 local upgrades = {
     {
@@ -36,13 +50,15 @@ local upgrades = {
         effect = function(p) p.lifes = p.lifes + 4; p.max_life = p.max_life + 4 end, 
         get_desc = function() return Lang.text("item_life_desc") end, 
         get_desc2 = function(p) 
+            local level = (p.item_levels["Vida"] or 0)
             local current = p.max_life
             local next_val = current + 4
-            return Lang.text("item_life_stat", (p.item_levels["Vida"] or 0), current, next_val)
+            return Lang.text("item_life_stat", level + 1, current, next_val)
         end,
-        price=5,
+        base_price=5,
         weight = 25,
         icon=Vida,
+        get_price = getItemPrice,
     },
     {
         id = "Força",
@@ -53,12 +69,13 @@ local upgrades = {
             local current = p.demage
             local next_val = current + 0.4
             local level = (p.item_levels["Força"] or 0)
-            return Lang.text("item_str_stat", level, current, next_val)
+            return Lang.text("item_str_stat", level + 1, current, next_val)
         end, 
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 25,
         icon=Forca,
+        get_price = getItemPrice,
     },
     {
         id = "Rapidez", 
@@ -69,12 +86,13 @@ local upgrades = {
             local current = p.speed
             local next_val = current + 0.75
             local level = (p.item_levels["Rapidez"] or 0)
-            return Lang.text("item_spd_stat", level, current, next_val)
+            return Lang.text("item_spd_stat", level + 1, current, next_val)
         end, 
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 25,
         icon=Rapidez,
+        get_price = getItemPrice,
     },
     {
         id = "Bola de neve", 
@@ -92,12 +110,13 @@ local upgrades = {
             local current_cd = p.tiro_max_time
             local next_cd = math.max(1, current_cd - 0.15)
             local level = (p.item_levels["Bola de neve"] or 0)
-            return Lang.text("item_snow_stat", level, current_dmg, next_dmg, current_cd, next_cd)
+            return Lang.text("item_snow_stat", level + 1, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 20,
         icon=neve,
+        get_price = getItemPrice,
     },
     {
         id = "Bloco de gelo",
@@ -114,12 +133,13 @@ local upgrades = {
             local current_cd = p.roda_max_time
             local next_cd = math.max(1.3, current_cd - 0.15)
             local level = (p.item_levels["Bloco de gelo"] or 0)
-            return Lang.text("item_ice_stat", level, current_dmg, next_dmg, current_cd, next_cd)
+            return Lang.text("item_ice_stat", level + 1, current_dmg, next_dmg, current_cd, next_cd)
         end,
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 20,
         icon=Gelo,
+        get_price = getItemPrice,
     },
     {
         id = "Pedras do ceu", 
@@ -136,12 +156,13 @@ local upgrades = {
             local current_cd = p.pedra_max_time
             local next_cd = math.max(0.5, current_cd - 0.1)
             local level = (p.item_levels["Pedras do ceu"] or 0)
-            return Lang.text("item_rock_stat", level, current_dmg, next_dmg, current_cd, next_cd)
+            return Lang.text("item_rock_stat", level + 1, current_dmg, next_dmg, current_cd, next_cd)
         end, 
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 20,
         icon=pedras,
+        get_price = getItemPrice,
     },
     {
         id = "Veneno mortal", 
@@ -158,11 +179,12 @@ local upgrades = {
             local current_delay = p.veneno_delay
             local next_delay = math.max(0.33, current_delay - 0.04)
             local level = (p.item_levels["Veneno mortal"] or 0)
-            return Lang.text("item_psn_stat", level, current_dmg, next_dmg, current_delay, next_delay)
+            return Lang.text("item_psn_stat", level + 1, current_dmg, next_dmg, current_delay, next_delay)
         end, 
-        price=5,
+        base_price=5,
         weight = 10,
         icon=VenenoSprite,
+        get_price = getItemPrice,
     },
     {
         id = "Fogo perigoso", 
@@ -179,12 +201,13 @@ local upgrades = {
             local current_delay = p.fogo_delay
             local next_delay = math.max(0.66, current_delay - 0.04)
             local level = (p.item_levels["Fogo perigoso"] or 0)
-            return Lang.text("item_fire_stat", level, current_dmg, next_dmg, current_delay, next_delay)
+            return Lang.text("item_fire_stat", level + 1, current_dmg, next_dmg, current_delay, next_delay)
         end,
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 10,
         icon=Fogo,
+        get_price = getItemPrice,
     },
     {
         id = "Imobilizador", 
@@ -202,262 +225,183 @@ local upgrades = {
             local current_delay = p.gelo_delay
             local next_delay = math.max(0.5, current_delay - 0.04)
             local level = (p.item_levels["Imobilizador"] or 0)
-            return Lang.text("item_frz_stat", level, current_slow, next_slow, current_delay, next_delay)
+            return Lang.text("item_frz_stat", level + 1, current_slow, next_slow, current_delay, next_delay)
         end,
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5,
         type = "upgrade",
         weight = 10,
         icon=Imobilizador,
+        get_price = getItemPrice,
     },
     {
         id = "Vitalidade", 
         get_name = function() return Lang.text("item_vit") end,
         effect = function(p) 
             p.regen = true
-            -- Aumenta 1 de vida por nível (já que é só por rodada, +0.5 seria pouco)
-            p.vidas_por_rodada = (p.vidas_por_rodada or 0) + 1
+            p.regen_amount = (p.regen_amount or 0) + 2
         end, 
         get_desc = function() return Lang.text("item_vit_desc") end, 
         get_desc2 = function(p) 
-            local current_heal = p.vidas_por_rodada or 0
-            local next_heal = current_heal + 1
+            local current = (p.regen_amount or 0)
+            local next_val = current + 2
             local level = (p.item_levels["Vitalidade"] or 0)
-            -- Atualizado para usar a nova string de stats
-            return Lang.text("item_vit_stat", level, current_heal, next_heal)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
+            return Lang.text("item_vit_stat", level + 1, current, next_val)
+        end, 
+        base_price = 5,
         type = "upgrade",
-        weight = 10,
+        weight = 15,
         icon=Vitalidade,
+        get_price = getItemPrice,
     },
     {
-        id = "Anel de Lava", 
+        id = "Anel de Lava",
         get_name = function() return Lang.text("item_lava") end,
         effect = function(p) 
             p.anel_ativo = true
-            p.anel_pontos = p.anel_pontos + 1
-            p.anel_velocidade = p.anel_velocidade + 0.1
-            p.anel_dano = p.anel_dano + 0.15
+            p.anel_pontos = (p.anel_pontos or 0) + 2
+            p.demage = p.demage + 0.2
         end, 
         get_desc = function() return Lang.text("item_lava_desc") end, 
         get_desc2 = function(p) 
-            local current_dmg = p.anel_dano
-            local next_dmg = current_dmg + 0.15
-            local current_qty = p.anel_pontos
-            local next_qty = current_qty + 1
+            local current_count = (p.anel_pontos or 0)
+            local next_count = current_count + 2
+            local current_dmg = p.demage
+            local next_dmg = current_dmg + 0.2
             local level = (p.item_levels["Anel de Lava"] or 0)
-            return Lang.text("item_lava_stat", level, current_qty, next_qty, current_dmg, next_dmg)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
+            return Lang.text("item_lava_stat", level + 1, current_count, next_count, current_dmg, next_dmg)
+        end, 
+        base_price = 5,
         type = "upgrade",
-        weight = 20,
+        weight = 8,
         icon=Lava,
+        get_price = getItemPrice,
     },
     {
         id = "Pedras Preciosas", 
         get_name = function() return Lang.text("item_gem") end,
         effect = function(p) 
-            p.sombrio_ativo = true
-            if p.sombrio_delay > 0.5 then p.sombrio_delay = p.sombrio_delay - 0.2 end
-            p.demage = p.demage + 0.15
-            p.sombrio_quantidade = (p.sombrio_quantidade or 3) + 1
+            p.gema = true
+            p.gema_count = (p.gema_count or 0) + 1
+            p.demage = p.demage + 0.1
         end, 
         get_desc = function() return Lang.text("item_gem_desc") end, 
         get_desc2 = function(p) 
+            local current_count = (p.gema_count or 0)
+            local next_count = current_count + 1
             local current_dmg = p.demage * 0.5
-            local next_dmg = (p.demage + 0.15) * 0.5
-            local current_qty = p.sombrio_quantidade or 12
-            local next_qty = current_qty + 2
-            local current_cd = p.sombrio_delay
-            local next_cd = math.max(0.5, current_cd - 0.2)
+            local next_dmg = (p.demage + 0.1) * 0.5
+            local current_cd = p.gema_max_time or 1.5
+            local next_cd = math.max(0.5, current_cd - 0.15)
             local level = (p.item_levels["Pedras Preciosas"] or 0)
-            return Lang.text("item_gem_stat", level, current_qty, next_qty, current_dmg, next_dmg, current_cd, next_cd)
+            return Lang.text("item_gem_stat", level + 1, current_count, next_count, current_dmg, next_dmg, current_cd, next_cd)
         end,
-        price = 5, -- Grátis se aparecer no slot grátis
+        base_price = 5, 
         type = "upgrade",
-        weight = 20,
+        weight = 8,
         icon=sombriosSprite,
+        get_price = getItemPrice,
     },
     {
-        id = "Espada triângular",
-        get_name = function() return Lang.text("item_sword") end,
-        effect = function(p) 
-            p.triangle = true
-            if p.triangle_max_time > 0.5 then p.triangle_max_time = p.triangle_max_time - 0.2 end
-            p.demage = p.demage + 0.15
-        end, 
-        get_desc = function() return Lang.text("item_sword_desc") end, 
-        get_desc2 = function(p) 
-            local current_dmg = p.demage
-            local next_dmg = (p.demage + 0.15)
-            local current_cd = p.sombrio_delay
-            local next_cd = math.max(0.5, current_cd - 0.2)
-            local level = (p.item_levels["Espada triângular"] or 0)
-            return Lang.text("item_sword_stat", level, current_dmg, next_dmg, current_cd, next_cd)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
-        type = "upgrade",
-        weight = 0
-    },
-    {
-        id = "Guirlanda", -- Use esse ID para verificar no item_levels
+        id = "Guirlanda de Espinhos",
         get_name = function() return Lang.text("item_garlic") end,
-        effect = function(p) 
-            p.guirlanda = true
-            p.guirlanda_raio = p.guirlanda_raio + 6 -- Aumenta o raio a cada nivel
-            p.guirlanda_dano = p.guirlanda_dano + 0.15
-        end, 
-        get_desc = function() return Lang.text("item_garlic_desc") end, 
-        get_desc2 = function(p) 
-            return Lang.text("item_garlic_stat", (p.item_levels["Guirlanda"] or 0), p.guirlanda_raio, p.guirlanda_dano)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
-        type = "upgrade",
-        weight = 20,
-        icon = love.graphics.newImage("assets/GuirlandaICON.png"),
-    },
-    {
-        id = "Bumerangue",
-        get_name = function() return Lang.text("item_boom") end,
-        effect = function(p) 
-            p.bumerangue = true
-            if p.bumerangue_delay > 0.5 then p.bumerangue_delay = p.bumerangue_delay - 0.25 end
-            p.demage = p.demage + 0.25
-        end, 
-        get_desc = function() return Lang.text("item_boom_desc") end, 
-        get_desc2 = function(p) 
-            return Lang.text("item_boom_stat", (p.item_levels["Bumerangue"] or 0), p.bumerangue_delay)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
-        type = "upgrade",
-        weight = 20,
-        icon = love.graphics.newImage("assets/BumerangICON.png"),
-    },
-{
-        id = "Roubo de vida", -- Deve ser igual ao nome em player.lua
-        get_name = function() return Lang.text("item_lifesteal") end,
-        effect = function(p) 
-            -- Aumenta a chance em 4% (0.04) a cada nível
-            p.lifesteal_chance = (p.lifesteal_chance or 0) + 0.15
-        end, 
-        get_desc = function() return Lang.text("item_lifesteal_desc") end, 
-        get_desc2 = function(p) 
-            local current = (p.lifesteal_chance or 0) * 100
-            local next_val = current + 15
-            local level = (p.item_levels["Drenagem Natalina"] or 0)
-            return Lang.text("item_lifesteal_stat", level, current, next_val)
-        end,
-        price = 5, -- Grátis se aparecer no slot grátis
-        type = "upgrade",
-        weight = 0, -- Raridade (quanto menor, mais raro)
-        icon = love.graphics.newImage("assets/VidaICON.png"), -- Reusando icone de vida
-    },
-    {
-    id = "Estrelas Natalinas",
-        get_name = function() return Lang.text("item_star_name") end,
-        get_desc = function() return Lang.text("item_star_desc") end,
-        get_desc2 = function(p) 
-            return Lang.text("item_star_stat", (p.item_levels["Estrelas Natalinas"] or 0), p.estrelas_count)
-        end,
         effect = function(p)
-            p.estrelas_natalinas = true
-            p.estrelas_count = (p.estrelas_count or 0) + 1 -- Aumenta o número de estrelas por nível
+            p.guirlanda = true
+            p.guirlanda_dano = (p.guirlanda_dano or 0.2) + 0.1
+            p.guirlanda_raio = (p.guirlanda_raio or 32) + 4
         end,
-        price = 5, -- Grátis se aparecer no slot grátis
-        type = "upgrade",
-        weight = 20, -- Raridade (quanto menor, mais raro)
-        icon = love.graphics.newImage("assets/EstrelaICON.png"),
-    },
-    -- 🆕 NOVOS ITENS ADICIONADOS
-    {
-        id = "Precisão Mortal",
-        get_name = function() return "Precisão Mortal" end,
-        effect = function(p) 
-            p.crit_chance = (p.crit_chance or 0) + 0.05
-            p.crit_damage = (p.crit_damage or 1.5) + 0.25
-        end, 
-        get_desc = function() return "Aumenta chance e dano de acertos críticos" end, 
-        get_desc2 = function(p) 
-            local current_chance = ((p.crit_chance or 0) * 100)
-            local next_chance = current_chance + 5
-            local current_dmg = ((p.crit_damage or 1.5) - 1) * 100
-            local next_dmg = current_dmg + 25
-            local level = (p.item_levels["Precisão Mortal"] or 0)
-            return string.format("Nível %d | Crítico: %.0f%% → %.0f%% | Dano: +%.0f%% → +%.0f%%", 
-                level, current_chance, next_chance, current_dmg, next_dmg)
+        get_desc = function() return Lang.text("item_garlic_desc") end,
+        get_desc2 = function(p)
+            local level = (p.item_levels["Guirlanda de Espinhos"] or 0)
+            local dmg = p.guirlanda_dano or 0.2
+            local area= p.guirlanda_raio or 32
+            return Lang.text("item_garlic_stat", level + 1, area, dmg)
         end,
-        price = 5,
+        base_price = 5,
         type = "upgrade",
-        weight = 8,
-        icon = love.graphics.newImage("assets/sprite5.png"),
+        weight = 5,
+        icon = Icon_Guirlanda,
+        get_price = getItemPrice,
     },
     {
-        id = "Velocidade de Ataque",
-        get_name = function() return "Velocidade de Ataque" end,
-        effect = function(p) 
-            local reduction = 0.95
-            if p.tiro then p.tiro_max_time = p.tiro_max_time * reduction end
-            if p.roda then p.roda_max_time = p.roda_max_time * reduction end
-            if p.pedra then p.pedra_max_time = p.pedra_max_time * reduction end
-            if p.veneno then p.veneno_delay = p.veneno_delay * reduction end
-            if p.fogo then p.fogo_delay = p.fogo_delay * reduction end
-            if p.gelo then p.gelo_delay = p.gelo_delay * reduction end
-            if p.bumerangue then p.bumerangue_delay = p.bumerangue_delay * reduction end
-            p.attack_speed_mult = (p.attack_speed_mult or 1.0) * reduction
-        end, 
-        get_desc = function() return "Reduz o tempo de recarga de TODOS os ataques" end, 
-        get_desc2 = function(p) 
-            local current_mult = ((p.attack_speed_mult or 1.0) - 1) * -100
-            local next_mult = current_mult + 5
-            local level = (p.item_levels["Velocidade de Ataque"] or 0)
-            return string.format("Nível %d | Velocidade: +%.0f%% → +%.0f%%", 
-                level, current_mult, next_mult)
+        id = "Bumerangue Natalino",
+        get_name = function() return Lang.text("item_boom") end,
+        effect = function(p)
+            p.boom = true
+            p.boom_max_time = (p.boom_max_time or 2) - 0.3
         end,
-        price = 5,
+        get_desc = function() return Lang.text("item_boom_desc") end,
+        get_desc2 = function(p)
+            local level = (p.item_levels["Bumerangue Natalino"] or 0)
+            local cd = p.boom_max_time or 2
+            return Lang.text("item_boom_stat", level + 1, cd)
+        end,
+        base_price = 5,
         type = "upgrade",
-        weight = 15,
-        icon = Rapidez,
+        weight = 5,
+        icon = Icon_Bumerang,
+        get_price = getItemPrice,
     },
     {
-        id = "Escudo Natalino",
-        get_name = function() return "Escudo Natalino" end,
-        effect = function(p) 
-            p.block_chance = math.min(0.75, (p.block_chance or 0) + 0.10)
-        end, 
-        get_desc = function() return "Chance de bloquear completamente o dano recebido" end, 
-        get_desc2 = function(p) 
-            local current = ((p.block_chance or 0) * 100)
-            local next_val = math.min(75, current + 10)
-            local level = (p.item_levels["Escudo Natalino"] or 0)
-            return string.format("Nível %d | Bloqueio: %.0f%% → %.0f%% (máx 75%%)", 
-                level, current, next_val)
+        id = "Chuva Estrelada",
+        get_name = function() return Lang.text("item_star_name") end,
+        effect = function(p)
+            p.star = true
+            p.star_max_time = (p.star_max_time or 1.5) - 0.1
         end,
-        price = 5,
+        get_desc = function() return Lang.text("item_star_desc") end,
+        get_desc2 = function(p)
+            local level = (p.item_levels["Chuva Estrelada"] or 0)
+            local cd = p.star_max_time or 1.5
+            return Lang.text("item_star_stat", level + 1, cd)
+        end,
+        base_price = 5,
         type = "upgrade",
-        weight = 8,
-        icon = love.graphics.newImage("assets/sprite2.png"),
+        weight = 5,
+        icon = Icon_Estrelas,
+        get_price = getItemPrice,
+    },
+    {
+        id = "Drenagem Natalina",
+        get_name = function() return Lang.text("item_lifesteal") end,
+        effect = function(p)
+            p.lifesteal = true
+            p.lifesteal_percent = (p.lifesteal_percent or 0.1) + 0.05
+        end,
+        get_desc = function() return Lang.text("item_lifesteal_desc") end,
+        get_desc2 = function(p)
+            local level = (p.item_levels["Drenagem Natalina"] or 0)
+            local percent = (p.lifesteal_percent or 0.1) * 100
+            return Lang.text("item_lifesteal_stat", level + 1, percent)
+        end,
+        base_price = 5,
+        type = "upgrade",
+        weight = 5,
+        icon = LifestealIcon,
+        get_price = getItemPrice,
     },
     {
         id = "Rajada Glacial",
         get_name = function() return "Rajada Glacial" end,
-        effect = function(p) 
-            p.multishot_chance = (p.multishot_chance or 0) + 0.08
+        effect = function(p)
+            p.multishot = true
+            p.multishot_chance = (p.multishot_chance or 0.2) + 0.08
             p.multishot_count = (p.multishot_count or 1) + 0.3
-        end, 
-        get_desc = function() return "Chance de disparar projéteis adicionais" end, 
-        get_desc2 = function(p) 
+        end,
+        get_desc = function() return "Chance de disparar múltiplos tiros!" end,
+        get_desc2 = function(p)
             local current_chance = ((p.multishot_chance or 0) * 100)
             local next_chance = current_chance + 8
             local current_count = math.floor(p.multishot_count or 1)
-            local next_count = math.floor((p.multishot_count or 1) + 0.3)
+            local next_count = math.floor((p.multishot_count or 1) + 0.25)
             local level = (p.item_levels["Rajada Glacial"] or 0)
             return string.format("Nível %d | Chance: %.0f%% → %.0f%% | Extra: %d → %d", 
-                level, current_chance, next_chance, current_count, next_count)
+                level + 1, current_chance, next_chance, current_count, next_count)
         end,
-        price = 5,
+        base_price = 5,
         type = "upgrade",
-        weight = 5,
+        weight = 0,
         icon = neve,
+        get_price = getItemPrice,
     },
     {
         id = "Presente Explosivo",
@@ -475,12 +419,13 @@ local upgrades = {
             local next_rad = current_rad + 4
             local level = (p.item_levels["Presente Explosivo"] or 0)
             return string.format("Nível %d | Dano: %.0f%% → %.0f%% do dano | Raio: %dpx → %dpx", 
-                level, current_dmg, next_dmg, current_rad, next_rad)
+                level + 1, current_dmg, next_dmg, current_rad, next_rad)
         end,
-        price = 5,
+        base_price = 5,
         type = "upgrade",
         weight = 6,
         icon = presente,
+        get_price = getItemPrice,
     }
 }
 
@@ -490,33 +435,34 @@ local shop_items = {
         get_name = function() return Lang.text("relic_greed") end,
         get_desc = function() return Lang.text("relic_greed_desc") end,
         effect = function(p) p.relics["Greed"] = true end,
-        price = 120,
+        base_price = 120,
         type = "relic",
         weight = 10,
-        icon = love.graphics.newImage("assets/CoinICON.png")
+        icon = love.graphics.newImage("assets/CoinICON.png"),
+        get_price = function(item, player) return item.base_price end,
     },
     {
         id = "Coin magnet",
         get_name = function() return Lang.text("relic_coin_magnet") end,
         get_desc = function() return Lang.text("relic_coin_magnet_desc") end,
         effect = function(p) p.relics["Coin Magnet"] = true end,
-        price = 100,
+        base_price = 100,
         type = "relic",
         weight = 10,
-        icon = love.graphics.newImage("assets/ImãICON.png")
+        icon = love.graphics.newImage("assets/ImãICON.png"),
+        get_price = function(item, player) return item.base_price end,
     },
-    -- 🆕 NOVA RELÍQUIA
     {
         id = "Sorte Dourada",
         get_name = function() return "Sorte Dourada" end,
         get_desc = function() return "Dobra a chance de drops raros e melhora recompensas" end,
         effect = function(p) p.relics["Sorte Dourada"] = true end,
-        price = 150,
+        base_price = 150,
         type = "relic",
         weight = 8,
-        icon = love.graphics.newImage("assets/Sorte.png")
+        icon = love.graphics.newImage("assets/Sorte.png"),
+        get_price = function(item, player) return item.base_price end,
     },
-
 }
 
 local function pickRandomUnique(pool, count)
@@ -544,7 +490,6 @@ end
 
 function Rewards.generate()
     Rewards.slots = {}
-    -- Pega 3 de cada pool e coloca na mesma linha
     local items_a = pickRandomUnique(upgrades, 3)
     local items_b = pickRandomUnique(shop_items, 2)
     
@@ -565,13 +510,15 @@ function Rewards.buy(index)
     local slot = Rewards.slots[index]
     if not slot or slot.bought then return end
 
-    if player.money >= slot.item.price then
-        player.money = player.money - slot.item.price
+    local price = slot.item.get_price(slot.item, player)
+    
+    if player.money >= price then
+        player.money = player.money - price
         slot.item.effect(player)
         slot.bought = true
         
-        -- Se for um upgrade, aumenta o nível no registro
-        if slot.item.price == 5 then
+        -- Aumenta o nível do item
+        if slot.item.type == "upgrade" then
             player.item_levels[slot.item.id] = (player.item_levels[slot.item.id] or 0) + 1
         end
     end
@@ -600,7 +547,6 @@ function Rewards:selectReward()
     
     reward.effect(player)
     
-    -- Usa o 'id' como chave
     if player.item_levels[reward.id] == nil then
         player.item_levels[reward.id] = 0
     end
@@ -610,11 +556,9 @@ function Rewards:selectReward()
 end
 
 function Rewards.get_icon_by_name(name)
-    -- Procura em upgrades
     for _, item in ipairs(upgrades) do
         if item.id == name then return item.icon end
     end
-    -- Procura em shop
     for _, item in ipairs(shop_items) do
         if item.id == name then return item.icon end
     end
@@ -651,7 +595,6 @@ function Rewards.draw()
         if slot.item then
             love.graphics.print(slot.item.get_name(), 16, (128 * 2) - 64)
             love.graphics.print(slot.item.get_desc(), 16, (128 * 2) - 48)
-            -- Se tiver get_desc2 (stats), desenha
             if slot.item.get_desc2 then
                 Utils.setColor(12)
                 love.graphics.print(slot.item.get_desc2(player), 16, (128 * 2) - 28)
