@@ -249,7 +249,7 @@ local upgrades = {
         end, 
         base_price = 5,
         type = "upgrade",
-        weight = 15,
+        weight = 10,
         icon=Vitalidade,
         get_price = getItemPrice,
     },
@@ -272,7 +272,7 @@ local upgrades = {
         end, 
         base_price = 5,
         type = "upgrade",
-        weight = 8,
+        weight = 20,
         icon=Lava,
         get_price = getItemPrice,
     },
@@ -297,7 +297,7 @@ local upgrades = {
         end,
         base_price = 5, 
         type = "upgrade",
-        weight = 8,
+        weight = 20,
         icon=sombriosSprite,
         get_price = getItemPrice,
     },
@@ -318,7 +318,7 @@ local upgrades = {
         end,
         base_price = 5,
         type = "upgrade",
-        weight = 5,
+        weight = 20,
         icon = Icon_Guirlanda,
         get_price = getItemPrice,
     },
@@ -337,12 +337,12 @@ local upgrades = {
         end,
         base_price = 5,
         type = "upgrade",
-        weight = 5,
+        weight = 20,
         icon = Icon_Bumerang,
         get_price = getItemPrice,
     },
     {
-        id = "Chuva Estrelada",
+        id = "Estrelas Natalinas",
         get_name = function() return Lang.text("item_star_name") end,
         effect = function(p)
             p.star = true
@@ -356,7 +356,7 @@ local upgrades = {
         end,
         base_price = 5,
         type = "upgrade",
-        weight = 5,
+        weight = 20,
         icon = Icon_Estrelas,
         get_price = getItemPrice,
     },
@@ -435,18 +435,18 @@ local shop_items = {
         get_name = function() return Lang.text("relic_greed") end,
         get_desc = function() return Lang.text("relic_greed_desc") end,
         effect = function(p) p.relics["Greed"] = true end,
-        base_price = 120,
+        base_price = 110,
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/CoinICON.png"),
         get_price = function(item, player) return item.base_price end,
     },
     {
-        id = "Coin magnet",
+        id = "Coin Magnet", -- Ajustado para bater com o nome usado no effect
         get_name = function() return Lang.text("relic_coin_magnet") end,
         get_desc = function() return Lang.text("relic_coin_magnet_desc") end,
         effect = function(p) p.relics["Coin Magnet"] = true end,
-        base_price = 100,
+        base_price = 75,
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/ImãICON.png"),
@@ -454,10 +454,10 @@ local shop_items = {
     },
     {
         id = "Sorte Dourada",
-        get_name = function() return "Sorte Dourada" end,
-        get_desc = function() return "Dobra a chance de drops raros e melhora recompensas" end,
+        get_name = function() return Lang.text("relic_gold_luck") end,
+        get_desc = function() return Lang.text("relic_gold_luck_desc")  end,
         effect = function(p) p.relics["Sorte Dourada"] = true end,
-        base_price = 150,
+        base_price = 100,
         type = "relic",
         weight = 8,
         icon = love.graphics.newImage("assets/Sorte.png"),
@@ -491,7 +491,18 @@ end
 function Rewards.generate()
     Rewards.slots = {}
     local items_a = pickRandomUnique(upgrades, 3)
-    local items_b = pickRandomUnique(shop_items, 2)
+    
+    -- FILTRO DE RELÍQUIAS:
+    local available_relics = {}
+    for _, item in ipairs(shop_items) do
+        -- Verificamos se o jogador já tem essa relíquia marcada como true em player.relics
+        if not player.relics[item.id] then
+            table.insert(available_relics, item)
+        end
+    end
+    
+    -- Sorteia 2 relíquias apenas entre as que o jogador ainda não comprou
+    local items_b = pickRandomUnique(available_relics, 2)
     
     for _, it in ipairs(items_a) do table.insert(Rewards.slots, { item = it, bought = false }) end
     for _, it in ipairs(items_b) do table.insert(Rewards.slots, { item = it, bought = false }) end

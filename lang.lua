@@ -207,6 +207,8 @@ local db = {
         ["relic_boots_desc"] = "Aumenta velocidade permanentemente.",
         ["relic_glass"] = "Canhão de Vidro",
         ["relic_glass_desc"] = "Dobra o dano, mas reduz HP máximo.",
+        ["relic_gold_luck_desc"]="Dobra a chance de drops raros e melhora recompensas",
+        ["relic_gold_luck"]="Sorte Dourada",
 
         -- ITENS DE USO ÚNICO
         ["item_potion"] = "Poção de Vida",
@@ -384,7 +386,7 @@ local db = {
 
         ["item_star_name"]="Fallen Stars",
         ["item_star_desc"]="Makes stars fall on random enemies!",
-        ["item_star_stat"] = "Lvl %d | Qty: %.1fs",
+        ["item_star_stat"] = "Lvl %d | Cooldown: %.1fs",
 
         -- SYNERGIES
         ["synergy_ring_name"] = "Reindeer Ring",
@@ -420,6 +422,9 @@ local db = {
         ["relic_boots_desc"] = "Increases movement speed permanently.",
         ["relic_glass"] = "Glass Cannon",
         ["relic_glass_desc"] = "Double your damage, but halve your max HP.",
+        
+        ["relic_gold_luck_desc"]="Doubles the chance of rare drops and improves rewards.",
+        ["relic_gold_luck"]="Golden Luck",
 
         -- SINGLE USE ITEMS
         ["item_potion"] = "Health Potion",
