@@ -21,6 +21,7 @@ local Transitions = require("Transitions")
 local Lang = require('lang')
 local Shaders=require("shaders")
 local Save=require("save")
+local discordRPC = require("libs/discordRPC")
 
 -- 2. VARIÁVEIS GLOBAIS DO JOGO
 -- -------------------------------------------------------------
@@ -565,6 +566,20 @@ function love.load()
         fullscreen   = false,
         musica_antiga= false,
     }
+
+    local appId = "1469798601382301950"
+    discordRPC.initialize(appId, true)
+
+    presence = {
+        details = "Christmas-like",
+        state = "Playing",
+        largeImageKey = "ICONDiscord.png", -- Nome da imagem que você subiu no portal
+        largeImageText = "A Roguelike bullet hell by riko",
+        startTimestamp = os.time(), -- Mostra o tempo decorrido "00:00 elapsed"
+    }
+
+    discordRPC.updatePresence(presence)
+
     Save.load()
     Seed.new_random()
     love.graphics.setDefaultFilter("nearest", "nearest")
@@ -640,9 +655,13 @@ function love.load()
 end
 
 function love.update(dt)
+    discordRPC.runCallbacks()
     if GameState.current == "play" and is_paused then
+        presence.state = "Paused"
+        discordRPC.updatePresence(presence)
         return
     end
+
     updateBackgrounds(dt)
     Camera:update(dt)
     Part.update(dt)
@@ -1363,4 +1382,5 @@ function love.quit()
             print("Run saved successfully!")
         end
     end
+    discordRPC.shutdown()
 end
