@@ -21,7 +21,6 @@ local Transitions = require("Transitions")
 local Lang = require('lang')
 local Shaders=require("shaders")
 local Save=require("save")
-local discordRPC = require("libs/discordRPC")
 
 -- 2. VARIÁVEIS GLOBAIS DO JOGO
 -- -------------------------------------------------------------
@@ -567,18 +566,24 @@ function love.load()
         musica_antiga= false,
     }
 
+    local Discord = require("libs/discordRPC")
+
     local appId = "1469798601382301950"
-    discordRPC.initialize(appId, true)
+    
+    _G.Discord = Discord
+    
+    _G.Discord.initialize(appId, true)
 
     presence = {
         details = "Christmas-like",
         state = "Playing",
-        largeImageKey = "ICONDiscord.png", -- Nome da imagem que você subiu no portal
+        largeImageKey = "icon_discord", -- Nome da imagem que você subiu no portal
         largeImageText = "A Roguelike bullet hell by riko",
         startTimestamp = os.time(), -- Mostra o tempo decorrido "00:00 elapsed"
+        smallImageText = "Christmas never ends"
     }
 
-    discordRPC.updatePresence(presence)
+    _G.Discord.updatePresence(presence)
 
     Save.load()
     Seed.new_random()
@@ -655,10 +660,8 @@ function love.load()
 end
 
 function love.update(dt)
-    discordRPC.runCallbacks()
+    _G.Discord.runCallbacks()
     if GameState.current == "play" and is_paused then
-        presence.state = "Paused"
-        discordRPC.updatePresence(presence)
         return
     end
 
@@ -744,6 +747,26 @@ function love.update(dt)
             Save.checkRecord(Waves.current_wave, game_timer) -- Salva recorde
             _G.switchState("over")
         end
+    end
+    -- Em love.update(dt) para atualizar em tempo real:
+
+    if GameState == "menu" then
+        _G.Discord.updateMenu("Menu Principal")
+        
+    elseif GameState == "playing" then
+        if Waves.is_boss_wave then
+            _G.Discord.updateBoss(Waves.current_wave, Waves.max_wave)
+        else
+            _G.Discord.updatePlaying(Waves.current_wave, Waves.max_wave, score)
+        end
+        
+    elseif GameState == "reward" then
+        _G.Discord.updateRewards(Waves.current_wave)
+        
+    elseif GameState == "infinite" then
+        _G.Discord.updateInfinite(Waves.current_wave, score)
+    elseif GameState == "gameover" then
+        _G.Discord.updateGameOver(Waves.current_wave, game_timer, score)
     end
 end
 
@@ -1382,5 +1405,7 @@ function love.quit()
             print("Run saved successfully!")
         end
     end
-    discordRPC.shutdown()
+    if _G.Discord then
+        _G.Discord.shutdown() 
+    end
 end

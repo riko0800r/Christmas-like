@@ -1,67 +1,86 @@
+-- ===================================================================
+-- DISCORD RPC CORRIGIDO - Sem conflitos FFI
+-- Substitua seu libs/discordRPC.lua com este arquivo
+-- ===================================================================
+
 local ffi = require "ffi"
-local discordRPClib = ffi.load("discord-rpc")
 
-ffi.cdef[[
-typedef struct DiscordRichPresence {
-    const char* state;   /* max 128 bytes */
-    const char* details; /* max 128 bytes */
-    int64_t startTimestamp;
-    int64_t endTimestamp;
-    const char* largeImageKey;  /* max 32 bytes */
-    const char* largeImageText; /* max 128 bytes */
-    const char* smallImageKey;  /* max 32 bytes */
-    const char* smallImageText; /* max 128 bytes */
-    const char* partyId;        /* max 128 bytes */
-    int partySize;
-    int partyMax;
-    const char* matchSecret;    /* max 128 bytes */
-    const char* joinSecret;     /* max 128 bytes */
-    const char* spectateSecret; /* max 128 bytes */
-    int8_t instance;
-} DiscordRichPresence;
+-- Verifica se as estruturas FFI já foram definidas
+if not pcall(function() return ffi.typeof("DiscordRichPresence") end) then
+    ffi.cdef[[
+    typedef struct DiscordRichPresence {
+        const char* state;
+        const char* details;
+        int64_t startTimestamp;
+        int64_t endTimestamp;
+        const char* largeImageKey;
+        const char* largeImageText;
+        const char* smallImageKey;
+        const char* smallImageText;
+        const char* partyId;
+        int partySize;
+        int partyMax;
+        const char* matchSecret;
+        const char* joinSecret;
+        const char* spectateSecret;
+        int8_t instance;
+    } DiscordRichPresence;
 
-typedef struct DiscordUser {
-    const char* userId;
-    const char* username;
-    const char* discriminator;
-    const char* avatar;
-} DiscordUser;
+    typedef struct DiscordUser {
+        const char* userId;
+        const char* username;
+        const char* discriminator;
+        const char* avatar;
+    } DiscordUser;
 
-typedef void (*readyPtr)(const DiscordUser* request);
-typedef void (*disconnectedPtr)(int errorCode, const char* message);
-typedef void (*erroredPtr)(int errorCode, const char* message);
-typedef void (*joinGamePtr)(const char* joinSecret);
-typedef void (*spectateGamePtr)(const char* spectateSecret);
-typedef void (*joinRequestPtr)(const DiscordUser* request);
+    typedef void (*readyPtr)(const DiscordUser* request);
+    typedef void (*disconnectedPtr)(int errorCode, const char* message);
+    typedef void (*erroredPtr)(int errorCode, const char* message);
+    typedef void (*joinGamePtr)(const char* joinSecret);
+    typedef void (*spectateGamePtr)(const char* spectateSecret);
+    typedef void (*joinRequestPtr)(const DiscordUser* request);
 
-typedef struct DiscordEventHandlers {
-    readyPtr ready;
-    disconnectedPtr disconnected;
-    erroredPtr errored;
-    joinGamePtr joinGame;
-    spectateGamePtr spectateGame;
-    joinRequestPtr joinRequest;
-} DiscordEventHandlers;
+    typedef struct DiscordEventHandlers {
+        readyPtr ready;
+        disconnectedPtr disconnected;
+        erroredPtr errored;
+        joinGamePtr joinGame;
+        spectateGamePtr spectateGame;
+        joinRequestPtr joinRequest;
+    } DiscordEventHandlers;
 
-void Discord_Initialize(const char* applicationId,
-                        DiscordEventHandlers* handlers,
-                        int autoRegister,
-                        const char* optionalSteamId);
+    void Discord_Initialize(const char* applicationId,
+                            DiscordEventHandlers* handlers,
+                            int autoRegister,
+                            const char* optionalSteamId);
 
-void Discord_Shutdown(void);
+    void Discord_Shutdown(void);
+    void Discord_RunCallbacks(void);
+    void Discord_UpdatePresence(const DiscordRichPresence* presence);
+    void Discord_ClearPresence(void);
+    void Discord_Respond(const char* userid, int reply);
+    void Discord_UpdateHandlers(DiscordEventHandlers* handlers);
+    ]]
+end
 
-void Discord_RunCallbacks(void);
+local discordRPC = {}
 
-void Discord_UpdatePresence(const DiscordRichPresence* presence);
+-- Tenta carregar a DLL
+local discordRPClib = nil
+local function load_dll()
+    local success, result = pcall(function()
+        return ffi.load("discord-rpc")
+    end)
+    return success and result or nil
+end
 
-void Discord_ClearPresence(void);
+discordRPClib = load_dll()
 
-void Discord_Respond(const char* userid, int reply);
-
-void Discord_UpdateHandlers(DiscordEventHandlers* handlers);
-]]
-
-local discordRPC = {} -- module table
+if discordRPClib then
+    print("✅ Discord RPC DLL carregado com sucesso!")
+else
+    print("⚠️ Discord RPC DLL não encontrado. Funcionalidade limitada.")
+end
 
 -- proxy to detect garbage collection of the module
 discordRPC.gcDummy = newproxy(true)
@@ -72,8 +91,6 @@ local function unpackDiscordUser(request)
 end
 
 -- callback proxies
--- note: callbacks are not JIT compiled (= SLOW), try to avoid doing performance critical tasks in them
--- luajit.org/ext_ffi_semantics.html
 local ready_proxy = ffi.cast("readyPtr", function(request)
     if discordRPC.ready then
         discordRPC.ready(unpackDiscordUser(request))
@@ -128,8 +145,8 @@ local function checkStrArg(arg, maxLen, argName, func, maybeNil)
 end
 
 local function checkIntArg(arg, maxBits, argName, func, maybeNil)
-    maxBits = math.min(maxBits or 32, 52) -- lua number (double) can only store integers < 2^53
-    local maxVal = 2^(maxBits-1) -- assuming signed integers, which, for now, are the only ones in use
+    maxBits = math.min(maxBits or 32, 52)
+    local maxVal = 2^(maxBits-1)
     assert(type(arg) == "number" and math.floor(arg) == arg
         and arg < maxVal and arg >= -maxVal
         or (maybeNil and arg == nil),
@@ -139,7 +156,12 @@ end
 
 -- function wrappers
 function discordRPC.initialize(applicationId, autoRegister, optionalSteamId)
-    local func = "discordRPC.Initialize"
+    if not discordRPClib then
+        print("⚠️ Discord RPC DLL não disponível. initialize() foi ignorado.")
+        return
+    end
+    
+    local func = "discordRPC.initialize"
     checkStrArg(applicationId, nil, "applicationId", func)
     checkArg(autoRegister, "boolean", "autoRegister", func)
     if optionalSteamId ~= nil then
@@ -159,27 +181,25 @@ function discordRPC.initialize(applicationId, autoRegister, optionalSteamId)
 end
 
 function discordRPC.shutdown()
-    discordRPClib.Discord_Shutdown()
+    if discordRPClib then
+        discordRPClib.Discord_Shutdown()
+    end
 end
 
 function discordRPC.runCallbacks()
-    discordRPClib.Discord_RunCallbacks()
+    if discordRPClib then
+        discordRPClib.Discord_RunCallbacks()
+    end
 end
--- http://luajit.org/ext_ffi_semantics.html#callback :
--- It is not allowed, to let an FFI call into a C function (runCallbacks)
--- get JIT-compiled, which in turn calls a callback, calling into Lua again (e.g. discordRPC.ready).
--- Usually this attempt is caught by the interpreter first and the C function
--- is blacklisted for compilation.
--- solution:
--- "Then you'll need to manually turn off JIT-compilation with jit.off() for
--- the surrounding Lua function that invokes such a message polling function."
+
 jit.off(discordRPC.runCallbacks)
 
 function discordRPC.updatePresence(presence)
+    if not discordRPClib then return end
+    
     local func = "discordRPC.updatePresence"
     checkArg(presence, "table", "presence", func)
 
-    -- -1 for string length because of 0-termination
     checkStrArg(presence.state, 127, "presence.state", func, true)
     checkStrArg(presence.details, 127, "presence.details", func, true)
 
@@ -222,7 +242,9 @@ function discordRPC.updatePresence(presence)
 end
 
 function discordRPC.clearPresence()
-    discordRPClib.Discord_ClearPresence()
+    if discordRPClib then
+        discordRPClib.Discord_ClearPresence()
+    end
 end
 
 local replyMap = {
@@ -231,11 +253,85 @@ local replyMap = {
     ignore = 2
 }
 
--- maybe let reply take ints too (0, 1, 2) and add constants to the module
 function discordRPC.respond(userId, reply)
+    if not discordRPClib then return end
+    
     checkStrArg(userId, nil, "userId", "discordRPC.respond")
     assert(replyMap[reply], "Argument 'reply' to discordRPC.respond has to be one of \"yes\", \"no\" or \"ignore\"")
     discordRPClib.Discord_Respond(userId, replyMap[reply])
+end
+
+-- ===================================================================
+-- NOVOS MÉTODOS CUSTOMIZADOS PARA MENSAGENS ESPECÍFICAS
+-- ===================================================================
+
+function discordRPC.updateMenu(title)
+    discordRPC.updatePresence({
+        state = "📋 " .. (title or "No Menu"),
+        details = "Explorando opções",
+        largeImageKey = "game_logo",
+        largeImageText = "Roguelike Bullet Hell",
+    })
+end
+
+function discordRPC.updatePlaying(wave, max_wave, score)
+    local details = string.format("🌊 Wave %d/%d | Score: %d", wave or 0, max_wave or 0, score or 0)
+    discordRPC.updatePresence({
+        state = "🎮 Em uma Partida",
+        details = details,
+        largeImageKey = "game_playing",
+        largeImageText = "Jogando",
+    })
+end
+
+function discordRPC.updateBoss(wave, max_wave)
+    discordRPC.updatePresence({
+        state = "⚔️ BOSS WAVE!",
+        details = string.format("Wave %d/%d - Prepare-se!", wave or 0, max_wave or 0),
+        largeImageKey = "game_boss",
+        largeImageText = "Lutando contra o Boss",
+    })
+end
+
+function discordRPC.updateRewards(wave)
+    discordRPC.updatePresence({
+        state = "🎁 Escolhendo Recompensa",
+        details = string.format("Wave %d Completada!", wave or 0),
+        largeImageKey = "game_reward",
+        largeImageText = "Selecione uma recompensa",
+    })
+end
+
+function discordRPC.updateInfinite(wave, score)
+    discordRPC.updatePresence({
+        state = "♾️ Modo Infinito",
+        details = string.format("Wave %d | Score: %d", wave or 0, score or 0),
+        largeImageKey = "game_infinite",
+        largeImageText = "Sem limite!",
+    })
+end
+
+function discordRPC.updatePaused(wave, score)
+    discordRPC.updatePresence({
+        state = "⏸️ Pausado",
+        details = string.format("Wave %d | Score: %d", wave or 0, score or 0),
+        largeImageKey = "game_paused",
+        largeImageText = "Retomando...",
+    })
+end
+
+function discordRPC.updateGameOver(wave, time_seconds, score)
+    local time_min = math.floor(time_seconds / 60)
+    local time_sec = time_seconds % 60
+    local time_str = string.format("%d:%02d", time_min, time_sec)
+    
+    discordRPC.updatePresence({
+        state = "💀 Game Over",
+        details = string.format("Wave %d | Tempo: %s | Score: %d", 
+            wave or 0, time_str, score or 0),
+        largeImageKey = "game_over",
+        largeImageText = "Quer tentar novamente?",
+    })
 end
 
 -- garbage collection callback
