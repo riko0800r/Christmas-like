@@ -322,7 +322,7 @@ function Player.new()
     self.active_item = nil
     self.relics = {}
     
-    self.coin_magnet_range = 40
+    self.coin_magnet_range = 48
 
     self.multishot_chance = 0      -- Chance de disparar projéteis extras (0-1)
     self.multishot_count = 1       -- Quantos projéteis extras disparar
@@ -999,8 +999,8 @@ function Player:updateSombrios(dt, enemies)
             for j = #enemies, 1, -1 do
                 local e = enemies[j]
                 if e.lifes > 0 and Utils.col(b, e) then
-                    e:takeDamage(self.demage * 0.5, self)
-                    self:recordDamage("Pedras preciosas", self.demage*0.5)
+                    e:takeDamage(self.demage * 0.75, self)
+                    self:recordDamage("Pedras preciosas", self.demage * 0.75)
                     if self.veneno then e.veneno = true end
                     if self.fogo then e.fogo = true end
                     if self.gelo then e.gelo = true end

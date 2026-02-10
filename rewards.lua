@@ -280,13 +280,13 @@ local upgrades = {
         id = "Pedras Preciosas", 
         get_name = function() return Lang.text("item_gem") end,
         effect = function(p) 
-            p.gema = true
-            p.gema_count = (p.gema_count or 0) + 1
+            p.sombrio_ativo = true
+            p.sombrio_quantidade = (p.sombrio_quantidade or 0) + 1
             p.demage = p.demage + 0.1
         end, 
         get_desc = function() return Lang.text("item_gem_desc") end, 
         get_desc2 = function(p) 
-            local current_count = (p.gema_count or 0)
+            local current_count = (p.sombrio_quantidade or 12)
             local next_count = current_count + 1
             local current_dmg = p.demage * 0.5
             local next_dmg = (p.demage + 0.1) * 0.5
@@ -345,13 +345,13 @@ local upgrades = {
         id = "Estrelas Natalinas",
         get_name = function() return Lang.text("item_star_name") end,
         effect = function(p)
-            p.star = true
-            p.star_max_time = (p.star_max_time or 1.5) - 0.1
+            p.estrelas_natalinas = true
+            p.estrelas_count = (p.estrelas_count or 3) + 1
         end,
         get_desc = function() return Lang.text("item_star_desc") end,
         get_desc2 = function(p)
             local level = (p.item_levels["Chuva Estrelada"] or 0)
-            local cd = p.star_max_time or 1.5
+            local cd = p.estrelas_count or 3
             return Lang.text("item_star_stat", level + 1, cd)
         end,
         base_price = 5,
@@ -364,18 +364,17 @@ local upgrades = {
         id = "Drenagem Natalina",
         get_name = function() return Lang.text("item_lifesteal") end,
         effect = function(p)
-            p.lifesteal = true
-            p.lifesteal_percent = (p.lifesteal_percent or 0.1) + 0.05
+            p.lifesteal_chance = (p.lifesteal_chance or 0.1) + 0.05
         end,
         get_desc = function() return Lang.text("item_lifesteal_desc") end,
         get_desc2 = function(p)
             local level = (p.item_levels["Drenagem Natalina"] or 0)
-            local percent = (p.lifesteal_percent or 0.1) * 100
+            local percent = (p.lifesteal_chance or 0.1) * 100
             return Lang.text("item_lifesteal_stat", level + 1, percent)
         end,
         base_price = 5,
         type = "upgrade",
-        weight = 5,
+        weight = 10,
         icon = LifestealIcon,
         get_price = getItemPrice,
     },
@@ -435,7 +434,7 @@ local shop_items = {
         get_name = function() return Lang.text("relic_greed") end,
         get_desc = function() return Lang.text("relic_greed_desc") end,
         effect = function(p) p.relics["Greed"] = true end,
-        base_price = 110,
+        base_price = 80,
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/CoinICON.png"),
@@ -446,7 +445,7 @@ local shop_items = {
         get_name = function() return Lang.text("relic_coin_magnet") end,
         get_desc = function() return Lang.text("relic_coin_magnet_desc") end,
         effect = function(p) p.relics["Coin Magnet"] = true end,
-        base_price = 75,
+        base_price = 50,
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/ImãICON.png"),
@@ -457,7 +456,7 @@ local shop_items = {
         get_name = function() return Lang.text("relic_gold_luck") end,
         get_desc = function() return Lang.text("relic_gold_luck_desc")  end,
         effect = function(p) p.relics["Sorte Dourada"] = true end,
-        base_price = 100,
+        base_price = 75,
         type = "relic",
         weight = 8,
         icon = love.graphics.newImage("assets/Sorte.png"),

@@ -229,9 +229,9 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     enemy.w = enemy.w or 16 -- Se não tiver largura definida, assume 16
     enemy.h = enemy.h or 16
 
-    -- Define hitbox menor (ex: 70% do tamanho visual)
-    enemy.hitbox_w = math.floor(enemy.w * 0.7)
-    enemy.hitbox_h = math.floor(enemy.h * 0.7)
+    -- Define hitbox menor (ex: 80% do tamanho visual)
+    enemy.hitbox_w = math.floor(enemy.w * 0.8)
+    enemy.hitbox_h = math.floor(enemy.h * 0.8)
 
     -- Calcula o offset para centralizar
     enemy.hitbox_off_x = (enemy.w - enemy.hitbox_w) / 2
@@ -246,7 +246,7 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     -- 🔧 MELHORADO: Crescimento gradual de HP
     local wave_factor
     if is_boss(tipo) then
-        wave_factor = math.pow(1 + (Waves.current_wave * 0.20), 1.12)
+        wave_factor = math.pow(1 + (Waves.current_wave * 0.18), 1.12)
     else
         wave_factor = math.pow(1 + (Waves.current_wave * 0.12), 1.1)
     end
@@ -256,8 +256,8 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     enemy.max_hp = enemy.lifes
 
     if player.relics and player.relics["Greed"] then
-        enemy.max_hp=enemy.max_hp*2
-        enemy.lifes=enemy.lifes*2
+        enemy.max_hp=enemy.max_hp*1.5
+        enemy.lifes=enemy.lifes*1.5
     end
     
     enemy.speed = clamp(0.15, enemy.speed, MAX_ENEMY_SPEED)

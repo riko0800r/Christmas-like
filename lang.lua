@@ -142,8 +142,8 @@ local db = {
         ["item_lava_desc"] = "Orbitam ao redor do jogador!",
         ["item_lava_stat"] = "Nível %d | Quantidade: %d -> %d | Dano: %.2f -> %.2f",
         ["item_gem"] = "Pedras Preciosas",
-        ["item_gem_desc"] = "Múltiplos projeteis preciosos para cima (50% do dano atual)!",
-        ["item_gem_stat"] = "Nível %d | Qtd: %d -> %d | Dano: %.2f -> %.2f | Tempo: %.2fs -> %.2fs",
+        ["item_gem_desc"] = "Múltiplos projeteis preciosos para cima e para baixo!",
+        ["item_gem_stat"] = "Nível %d | Quantidade: %d -> %d | Dano: %.2f -> %.2f",
 
         ["item_sword"] = "Espada triângular",
         ["item_sword_desc"] = "Projetil que a cada ataque gira a rotação ao seu redor.",
@@ -171,7 +171,7 @@ local db = {
 
         ["item_star_name"]="Chuva Estrelada",
         ["item_star_desc"]="Faz chover estrelas em inimigos aleatórios!",
-        ["item_star_stat"] = "Nvl %d | Qtd: %.1fs",
+        ["item_star_stat"] = "Nvl %d | Quantidade: %.1fs",
 
         -- SINERGIAS
         ["synergy_ring_name"] = "Anel de Rena",
@@ -303,7 +303,7 @@ local db = {
         ["char_lava"] = "Golden Reindeer",
         ["char_lava_desc"] = "Starts with Golden gifts\nRing protects and attacks enemies.",
         ["char_gift"] = "Precious Gift",
-        ["char_gift_desc"] = "Starts with Precious Gems\nThrows gems upwards (half dmg)",
+        ["char_gift_desc"] = "Starts with Precious Gems\nThrows gems upwards and ",
         ["char_mystery"] = "Mystery Reindeer",
         ["char_mystery_desc"] = "Starts with 2 random items\nunpredictable combinations!",
         
@@ -356,10 +356,10 @@ local db = {
         ["item_vit_stat"] = "Level %d | Heal: %d -> %d per wave",
         ["item_lava"] = "Golden Gifts",
         ["item_lava_desc"] = "Orbit around the player!",
-        ["item_lava_stat"] = "Level %d | Qty: %d -> %d | Dmg: %.2f -> %.2f",
+        ["item_lava_stat"] = "Level %d | Amount: %d -> %d | Dmg: %.2f -> %.2f",
         ["item_gem"] = "Precious Gems",
-        ["item_gem_desc"] = "Multiple gems upwards (50% dmg)!",
-        ["item_gem_stat"] = "Level %d | Qty: %d -> %d | Dmg: %.2f -> %.2f | Time: %.2fs -> %.2fs",
+        ["item_gem_desc"] = "Multiple precious stones tossed up and down!",
+        ["item_gem_stat"] = "Level %d | Amount: %d -> %d | Dmg: %.2f -> %.2f",
         ["item_sword"] = "Triangle Sword",
         ["item_sword_desc"] = "Projectile that rotates around you.",
         ["item_sword_stat"] = "Level %d | Dmg: %.2f -> %.2f | Time: %.2fs -> %.2fs",
@@ -386,7 +386,7 @@ local db = {
 
         ["item_star_name"]="Fallen Stars",
         ["item_star_desc"]="Makes stars fall on random enemies!",
-        ["item_star_stat"] = "Lvl %d | Cooldown: %.1fs",
+        ["item_star_stat"] = "Lvl %d | Amount: %.1f",
 
         -- SYNERGIES
         ["synergy_ring_name"] = "Reindeer Ring",
