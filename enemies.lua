@@ -108,7 +108,7 @@ local EnemyPresets = {
         demage_preset=2, 
         speed_base = 1.25, 
         speed_scale = 1/16, 
-        hp_base = 5,
+        hp_base = 4.25,
         hp_scale = 1/16,
         demage_scale=1/400,
         sprite=7 -- Use o sprite que preferir
@@ -284,8 +284,8 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         SFX_Enemy_Morte:play()
         Shaders:triggerFlash(self)
         -- Quando toma dano, ele fica gordo (X aumenta) e baixo (Y diminui)
-        self.sx = 1.75
-        self.sy = 0.4
+        self.sx = 1 + math.random(0.25,1.5)
+        self.sy = 0.5 - math.random(0.1,0.4)
         if self.lifes <= 0 then self.dead = true end
     end
 
@@ -1398,7 +1398,7 @@ function enemies_module.update(dt, player)
     Shaders:update(dt)
     
     golden_spawn_timer = golden_spawn_timer + dt
-    if golden_spawn_timer >= 2.0 then -- A cada 1 segundo
+    if golden_spawn_timer >= 3.0 then -- A cada 3 segundos
         golden_spawn_timer = 0
         local golden_chance = 0.025
         if player.relics and player.relics["Sorte Dourada"] then

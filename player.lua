@@ -110,7 +110,7 @@ function Player.new()
     self.veneno_delay = 0.5
     self.fogo_dano = 0
     self.fogo_delay = 0.5
-    self.gelo_dano = 0
+    self.gelo_dano = 0.1
     self.gelo_delay = 3
     self.gelo_slow  = 0.25
     self.vidas_por_rodada = 0
@@ -407,8 +407,8 @@ function Player:update(dt, enemies, time)
         -- Balanço mais rápido quando corre
         bob = math.sin(love.timer.getTime() * 18) * 0.06
         -- Leve inclinação de "correr"
-        self.target_sx = 1 - 0.15 + bob
-        self.target_sy = 1 + 0.05 - bob
+        self.target_sx = 1 - 0.1 + bob
+        self.target_sy = 1 + 0.1 - bob
     else
         -- Respiração parada
         bob = math.sin(love.timer.getTime() * 6) * 0.03

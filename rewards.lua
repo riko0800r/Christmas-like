@@ -437,7 +437,7 @@ local shop_items = {
         get_name = function() return Lang.text("relic_greed") end,
         get_desc = function() return Lang.text("relic_greed_desc") end,
         effect = function(p) p.relics["Greed"] = true end,
-        base_price = 80,
+        base_price = 60,
         type = "relic",
         weight = 10,
         icon = love.graphics.newImage("assets/CoinICON.png"),
@@ -547,7 +547,7 @@ function Rewards:selectReward()
     if not reward then return end
     
     if reward.id == "Novos itens" then
-        Rewards.generate(3)
+        Rewards.generate()
         setupButtonsForState("rewards")
         return
     end

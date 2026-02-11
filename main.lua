@@ -628,6 +628,7 @@ function love.load()
     Icon_Gelo = love.graphics.newImage("assets/GeloICON.png")
     Icon_Bumerang = love.graphics.newImage("assets/BumerangICON.png")
     Icon_Guirlanda = love.graphics.newImage("assets/GuirlandaICON.png")
+    Icon_Imobilizador = love.graphics.newImage("assets/ImobilizadorICON.png")
 
     Icon_Riko=love.graphics.newImage("assets/sprite5.png")
 
@@ -981,7 +982,7 @@ local function drawWorld()
         local elemental = (player and player.stats_elemental) or {}
         local elements = {
             {id = "fogo", icon = Icon_Fogo, label = "Fogo"},
-            {id = "gelo", icon = Icon_Gelo, label = "Gelo"},
+            {id = "gelo", icon = Icon_Imobilizador, label = "Gelo"},
             {id = "veneno", icon = Icon_Veneno, label = "Veneno"}
         }
 
@@ -1108,7 +1109,7 @@ local function drawWorld()
         local elemental = (player and player.stats_elemental) or {}
         local elements = {
             {id = "fogo", icon = Icon_Fogo, label = "Fogo"},
-            {id = "gelo", icon = Rewards.get_icon_by_name("Imobilizador"), label = "Gelo"},
+            {id = "gelo", icon = Icon_Imobilizador, label = "Gelo"},
             {id = "veneno", icon = Icon_Veneno, label = "Veneno"}
         }
 
