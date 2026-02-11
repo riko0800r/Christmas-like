@@ -329,6 +329,11 @@ function Player.new()
     self.crit_chance = 0           -- Chance de crítico
     self.crit_damage = 1.5         -- Multiplicador de dano crítico
 
+    self.sx = 1
+    self.sy = 1
+    self.target_sx = 1
+    self.target_sy = 1
+
     return self
 end
 
@@ -393,8 +398,31 @@ function Player:update(dt, enemies, time)
     self.x = self.x + move_x * dt * 60
     self.y = self.y + move_y * dt * 60
 
-    self.x = math.max(0, math.min(self.x, 128*4 - 16))
-    self.y = math.max(0, math.min(self.y, 128*2 - 16))
+    -- === NOVO: Física de Squash & Stretch do Player ===
+    local is_moving = (move_x ~= 0 or move_y ~= 0)
+    
+    -- Balanço
+    local bob = 0
+    if is_moving then
+        -- Balanço mais rápido quando corre
+        bob = math.sin(love.timer.getTime() * 18) * 0.06
+        -- Leve inclinação de "correr"
+        self.target_sx = 1 - 0.15 + bob
+        self.target_sy = 1 + 0.05 - bob
+    else
+        -- Respiração parada
+        bob = math.sin(love.timer.getTime() * 6) * 0.03
+        self.target_sx = 1 + bob
+        self.target_sy = 1 - bob
+    end
+
+    -- Lerp para voltar ao normal ou ir para o alvo
+    local lerp_speed = 12
+    self.sx = self.sx + (self.target_sx - self.sx) * dt * lerp_speed
+    self.sy = self.sy + (self.target_sy - self.sy) * dt * lerp_speed
+
+    self.x = math.max(8, math.min(self.x, 128*4 - 14))
+    self.y = math.max(8, math.min(self.y, 128*2 - 14))
 
     -- Atualiza itens base
     if self.tiro then self:checkTiroSpawn(dt) end
@@ -1550,6 +1578,8 @@ function Player:takeHit(dmg)
         
         return -- Bloqueou o dano!
     end
+    self.sx = 1.85
+    self.sy = 0.45
     SFX_dano:play()
     local damage = math.floor(dmg or 1)
     self.lifes = self.lifes - damage
@@ -1679,9 +1709,31 @@ function Player:draw()
     -- Desenha o player
     if self.invul <= 0 or math.floor(self.invul * 10) % 2 == 0 then
         Utils.setColor(7)
-        local scaleX = self.flp*2
-        local offsetX = self.flp and 8 or 0 
-        love.graphics.draw(self.sprite_sheet, self.sprite[self.tipo_jogador], self.x + offsetX, self.y,0, scaleX, 2, 4)
+        
+        -- === ALTERADO ===
+        -- Base scale 2 * direção * squash
+        local scaleX = self.flp * 2 * self.sx
+        local scaleY = 2 * self.sy
+        
+        -- Nota: O offset X pode precisar de ajuste fino dependendo do pivô da sua sprite
+        -- Como estamos usando getWidth()/2 como pivô (argumentos 7 e 8), geralmente o offset manual não é necessário
+        -- mas mantive sua lógica de offsetX caso sua sprite não esteja centralizada
+        local offsetX = 0 -- Removi o offset manual pois o pivô (2, 4) abaixo já tenta ajustar
+        
+        -- Ajustei o pivô (origin X, origin Y) para o centro aproximado da base (4, 8) para 8x8 sprite
+        -- Se sua sprite é 8x8, o centro é 4,4. Se quer que o pé seja o chão, use 4,8.
+        love.graphics.draw(
+            self.sprite_sheet, 
+            self.sprite[self.tipo_jogador], 
+            self.x, 
+            self.y + (8 - (8 * self.sy)), -- Compensação simples para o pé ficar no chão
+            0, 
+            scaleX, 
+            scaleY, 
+            2, -- Origin X (metade de 8)
+            2  -- Origin Y (pé da sprite 8x8)
+        )
+        -- =================
     end
 
     local Utils = require("utils")

@@ -5,9 +5,9 @@ local Shaders = require("shaders")
 
 local enemies_module = {}
 
-SFX_Enemy_Morte=love.audio.newSource("assets/hitHurt.wav","static")
+_G.SFX_Enemy_Morte=love.audio.newSource("assets/hitHurt.wav","static")
 -- Som para pegar o coração
-SFX_Pickup_Heart=love.audio.newSource("assets/vida.wav","static")
+_G.SFX_Pickup_Heart=love.audio.newSource("assets/vida.wav","static")
 SFX_Pickup_Heart:setPitch(1.5)
 SFX_Pickup_Heart:setVolume(0.25)
 
@@ -224,6 +224,12 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         state = "patrol",      -- Estado inicial padrão
         state_timer = 1,       -- Timer geral do estado
         base_speed = 0,        -- Para guardar a velocidade original
+
+            -- === NOVO: Variáveis de Squash & Stretch ===
+        sx = 1, -- Escala X atual (1 = normal)
+        sy = 1, -- Escala Y atual
+        target_sx = 1, -- Para onde a escala quer ir
+        target_sy = 1,
     }
 
     enemy.w = enemy.w or 16 -- Se não tiver largura definida, assume 16
@@ -277,6 +283,9 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
         SFX_Enemy_Morte:setPitch(randomPitch)
         SFX_Enemy_Morte:play()
         Shaders:triggerFlash(self)
+        -- Quando toma dano, ele fica gordo (X aumenta) e baixo (Y diminui)
+        self.sx = 1.75
+        self.sy = 0.4
         if self.lifes <= 0 then self.dead = true end
     end
 
@@ -297,6 +306,39 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
 
     table_insert(enemies, enemy)
     return enemy
+end
+
+-- Função auxiliar para lerp (suavização)
+local function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+local function update_squash_stretch(enemy, dt)
+    -- 1. Calcular a "Intenção" de escala baseada no movimento
+    -- Se estiver se movendo rápido, estica um pouco no Y e afina no X
+    local speed = math.sqrt(enemy.dx^2 + enemy.dy^2)
+    local max_speed = 2.5 -- Referencia aproximada da velocidade máxima
+    
+    -- Fator de esticar baseado na velocidade (sutil, máximo 15%)
+    local stretch_amount = math.min((speed / max_speed) * 0.15, 0.15)
+    
+    -- Adiciona um "bobbing" (senoide) para parecer que está andando/flutuando
+    local bob = math.sin(love.timer.getTime() * 12) * 0.05
+    
+    -- Se estiver parado, o efeito é menor
+    if speed < 0.5 then
+        stretch_amount = 0 
+        bob = math.sin(love.timer.getTime() * 5) * 0.02 -- Respiração lenta parado
+    end
+
+    -- O alvo é: Normal (1) +/- o esticamento +/- o balanço
+    enemy.target_sx = (1 - stretch_amount) + bob
+    enemy.target_sy = (1 + stretch_amount) - bob
+
+    -- 2. Suavizar a escala atual em direção ao alvo
+    -- O '15' é a velocidade de recuperação. Quanto maior, mais rígido.
+    enemy.sx = lerp(enemy.sx, enemy.target_sx, dt * 15)
+    enemy.sy = lerp(enemy.sy, enemy.target_sy, dt * 15)
 end
 
 local function resolve_enemy_collisions()
@@ -1071,6 +1113,7 @@ function enemies_module.update_enemy(enemy, player, dt)
     enemy.speed = clamp(0.95, enemy.speed, MAX_ENEMY_SPEED)
     enemy.x=clamp(0,enemy.x,512)
     enemy.y=clamp(0,enemy.y,256)
+    update_squash_stretch(enemy, dt)
     local update_fn = update_functions[enemy.tipo]
     if enemy.tempo_pausado<=0 then
         if update_fn then
@@ -1148,15 +1191,19 @@ local function draw_enemy(enemy)
         
         Utils.setColor(7)
         Shaders:use()
+
+        local current_sx = 2 * enemy.sx * enemy.flpx
+        local current_sy = 2 * enemy.sy
+        local tilt = (enemy.dx or 0) * 0.05
         
         if enemy.is_golden then Utils.setColor(10) else Utils.setColor(7) end -- 10 é amarelo na paleta pico-8
         love.graphics.draw(
             enemy.image, 
             enemy.x, 
             enemy.y,
-            0,
-            2*enemy.flpx,
-            2,
+            tilt,
+            current_sx,
+            current_sy,
             enemy.image:getWidth()/2,
             enemy.image:getHeight()/2
         )
@@ -1263,7 +1310,7 @@ function enemies_module.update_hearts(dt, player)
         local h = hearts[i]
         
         h.pulse = h.pulse + dt * 2.5
-        h.y = h.y + math.sin(h.pulse) * 0.25 -- Efeito leve de flutuação
+        h.y = h.y + math.sin(h.pulse) * 0.15 -- Efeito leve de flutuação
 
         -- Colisão com jogador
         if Utils.col(h, player) then

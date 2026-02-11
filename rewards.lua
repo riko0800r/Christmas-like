@@ -13,6 +13,9 @@ Rewards.free_claimed = false
 Rewards.selected_index = 1
 Rewards.current_rewards = {}
 
+_G.SFX_Reroll=love.audio.newSource("assets/reroll.wav", "static")
+_G.SFX_Buy=love.audio.newSource("assets/buy.wav","static")
+
 local presente=love.graphics.newImage("assets/Presente.png")
 local Lava=love.graphics.newImage("assets/Lava.png")
 local neve=love.graphics.newImage("assets/NeveICON.png")
@@ -512,6 +515,9 @@ function Rewards.reroll()
         player.money = player.money - Rewards.reroll_cost
         Rewards.reroll_cost = Rewards.reroll_cost + 5
         Rewards.generate()
+        local randomPitch = love.math.random() * 0.4 + 0.8
+        SFX_Reroll:setPitch(randomPitch)
+        SFX_Reroll:play()
         _G.setupButtonsForState("rewards")
     end
 end
@@ -526,6 +532,7 @@ function Rewards.buy(index)
         player.money = player.money - price
         slot.item.effect(player)
         slot.bought = true
+        SFX_Buy:play()
         
         -- Aumenta o nível do item
         if slot.item.type == "upgrade" then

@@ -129,7 +129,12 @@ function updateAudioVolume()
 
     SFX_Morte:setVolume(s_vol)
     SFX_select:setVolume(s_vol)
+    SFX_Pickup_Heart:setVolume(s_vol)
+    SFX_Enemy_Morte:setVolume(s_vol)
+    SFX_Pickup_Coin:setVolume(s_vol*0.3)
     SFX_Enemy_Morte:setVolume(s_vol*0.25)
+    SFX_Reroll:setVolume(s_vol)
+    SFX_Buy:setVolume(s_vol)
 end
 
 function toggleFullscreen()
@@ -575,7 +580,7 @@ function love.load()
     _G.Discord.initialize(appId, true)
 
     presence = {
-        details = "Christmas-like",
+        details = "Christmas-like remaked",
         state = "Playing",
         largeImageKey = "icon_discord", -- Nome da imagem que você subiu no portal
         largeImageText = "A Roguelike bullet hell by riko",
