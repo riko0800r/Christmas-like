@@ -4,6 +4,56 @@ local Lang = require('lang') -- <<<
 local Characters = {}
 Characters.selected_index = 1
 
+-- =============================================================
+--   SISTEMA DE DESBLOQUEIO
+-- =============================================================
+-- Só "normal" começa liberado; todo o resto é desbloqueado por
+-- conquistas (ver achievements.lua, campo `unlocks_character`).
+-- O estado de desbloqueio persiste em Save.data.unlocked_characters.
+Characters.DEFAULT_UNLOCKED = { normal = true }
+
+-- ---------------------------------------------------------------
+-- DEBUG: defina _G.DEBUG_UNLOCK_ALL = true (em main.lua, dentro de
+-- love.load) para liberar todos os personagens na hora, sem precisar
+-- desbloquear nada de verdade. Não mexe no save em disco — é só um
+-- "cheat" em memória pra testar; desligando a flag, volta ao estado
+-- real salvo.
+-- ---------------------------------------------------------------
+
+-- Referência ao save; setada em Characters.initSave(save_module) a partir
+-- de main.lua/save.lua pra evitar dependência circular direta.
+local Save = nil
+
+local function ensureSaveShape()
+    if not Save then return end
+    Save.data.unlocked_characters = Save.data.unlocked_characters or {}
+    -- Garante que o personagem inicial esteja sempre liberado, mesmo em
+    -- saves antigos criados antes desse sistema existir.
+    for id, _ in pairs(Characters.DEFAULT_UNLOCKED) do
+        Save.data.unlocked_characters[id] = true
+    end
+end
+
+function Characters.initSave(save_module)
+    Save = save_module
+    ensureSaveShape()
+end
+
+function Characters.isUnlocked(id)
+    if _G.DEBUG_UNLOCK_ALL then return true end
+    if Characters.DEFAULT_UNLOCKED[id] then return true end
+    ensureSaveShape()
+    return Save and Save.data.unlocked_characters[id] == true
+end
+
+function Characters.unlock(id)
+    ensureSaveShape()
+    if not Save then return end
+    if Save.data.unlocked_characters[id] then return end -- já desbloqueado
+    Save.data.unlocked_characters[id] = true
+    Save.write()
+end
+
 Characters.list = {
     {
         id = "normal",
@@ -460,8 +510,25 @@ function Characters.keypressed(key)
         Characters.selected_index = math.min(#Characters.list, Characters.selected_index + 1)
     elseif key == 'x' or key == 'return' then
         local chosen_char = Characters.list[Characters.selected_index]
+        if not Characters.isUnlocked(chosen_char.id) then
+            if SFX_select then SFX_select:play() end
+            return -- Personagem bloqueado: não faz nada
+        end
         chosen_char.apply(player)
         Characters.load(player)
+
+        -- IMPORTANTE: (re)inicia as ondas AQUI, não em resetGame().
+        -- resetGame() roda ANTES do jogador escolher modo/dificuldade
+        -- (é chamado ao clicar "Jogar", que só depois leva pra
+        -- menu_mode -> menu_difficulty -> character_select). Isso
+        -- fazia Waves.start rodar com a "difficulty" do jogo anterior
+        -- (ou o valor padrão), travando wave_final/boss_freq errados
+        -- pro resto da partida, mesmo escolhendo Impossível/Insano
+        -- logo em seguida. Chamando aqui, já com "difficulty" e
+        -- "game_mode" definitivos, a config de ondas fica correta.
+        local Waves = require("wave")
+        Waves.start(_G.game_mode, _G.difficulty)
+
         _G.switchState("play")
         Musica_Atual:stop()
         if GameConfig.musica_antiga==false then
@@ -492,6 +559,7 @@ function Characters.draw()
     
     for i, char in ipairs(Characters.list) do
         local x, y
+        local unlocked = Characters.isUnlocked(char.id)
             
         if i <= 8 then
             -- Coluna 1 (Esquerda)
@@ -504,19 +572,62 @@ function Characters.draw()
             y = 24 + ((i - 8) * 24) 
         end
 
-        Utils.setColor(7)
+        if unlocked then
+            Utils.setColor(7)
+        else
+            -- Silhueta escura para personagens bloqueados
+            love.graphics.setColor(0.15, 0.15, 0.15, 1)
+        end
         love.graphics.draw(Characters.sprite_sheet, Characters.image[i], x - 20, y, 0, 2, 2)
+
+        if not unlocked then
+            -- Cadeado simples desenhado com formas
+            Utils.setColor(5)
+            love.graphics.rectangle("line", x - 22, y - 2, 20, 20)
+            love.graphics.rectangle("fill", x - 20, y + 6, 16, 10)
+            love.graphics.circle("line", x - 12, y + 6, 6)
+        end
     end
     
     local selected_char = Characters.list[Characters.selected_index]
     if selected_char then
         Utils.setColor(0)
-        -- Descrição agora retorna uma tabela de linhas
-        local lines = selected_char.get_desc()
-        for i, line in ipairs(lines) do
-            love.graphics.print(line, (16)/2, 12 + (i * 8))
+        if Characters.isUnlocked(selected_char.id) then
+            -- Descrição agora retorna uma tabela de linhas
+            local lines = selected_char.get_desc()
+            for i, line in ipairs(lines) do
+                love.graphics.print(line, (16)/2, 12 + (i * 8))
+            end
+        else
+            love.graphics.print(Lang.text("char_locked"), (16)/2, 12 + 8)
+            local ach = Characters.getUnlockAchievement(selected_char.id)
+            if ach then
+                love.graphics.print(Lang.text("char_locked_hint", Lang.text(ach.desc_key)), (16)/2, 12 + 16)
+            end
         end
     end
+end
+
+-- Retorna a conquista (do achievements.lua) que libera este personagem,
+-- ou nil se não houver nenhuma (não deveria acontecer, exceto "normal").
+function Characters.getUnlockAchievement(char_id)
+    local ok, Achievements = pcall(require, "achievements")
+    if not ok then return nil end
+    for _, ach in ipairs(Achievements.getAll()) do
+        if ach.unlocks_character == char_id then
+            return ach
+        end
+    end
+    return nil
+end
+
+-- Acha a entrada de um personagem pelo id (pra achievements_ui.lua
+-- conseguir mostrar nome/sprite reais em vez do id cru).
+function Characters.getById(char_id)
+    for _, char in ipairs(Characters.list) do
+        if char.id == char_id then return char end
+    end
+    return nil
 end
 
 return Characters

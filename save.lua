@@ -15,12 +15,14 @@ Save.data = {
         MusicVolume = 12,
         SFXVolume = 20,
         fullscreen = false,
-        show_timer = true
+        show_timer = true,
+        crt = false,
     },
     records = {
         best_wave = 0,
         best_time = 0
     },
+    unlocked_characters = {},
     run = nil
 }
 
@@ -62,6 +64,12 @@ function Save.load()
         if loaded.records then 
             Save.data.records = loaded.records 
         end
+        if loaded.unlocked_characters then
+            Save.data.unlocked_characters = loaded.unlocked_characters
+        end
+        if loaded.achievements then
+            Save.data.achievements = loaded.achievements
+        end
         if loaded.run then 
             Save.data.run = loaded.run 
         end
@@ -74,6 +82,7 @@ function Save.load()
         _G.GameConfig.sfx_vol = Save.data.settings.SFXVolume
         _G.GameConfig.fullscreen = Save.data.settings.fullscreen
         _G.GameConfig.show_timer = Save.data.settings.show_timer
+        _G.GameConfig.crt_enabled = Save.data.settings.crt
         love.window.setFullscreen(_G.GameConfig.fullscreen)
     end
 end
@@ -84,12 +93,13 @@ function Save.write()
 end
 
 function Save.saveSettings()
-    Save.data.settings.language = Lang.current
-    Save.data.settings.OldMusic = _G.GameConfig.musica_antiga
-    Save.data.settings.MusicVolume = _G.GameConfig.music_vol
-    Save.data.settings.SFXVolume = _G.GameConfig.sfx_vol
-    Save.data.settings.fullscreen = _G.GameConfig.fullscreen
-    Save.data.settings.show_timer = _G.GameConfig.show_timer
+    Save.data.settings.language     = Lang.current
+    Save.data.settings.OldMusic     = _G.GameConfig.musica_antiga
+    Save.data.settings.MusicVolume  = _G.GameConfig.music_vol
+    Save.data.settings.SFXVolume    = _G.GameConfig.sfx_vol
+    Save.data.settings.fullscreen   = _G.GameConfig.fullscreen
+    Save.data.settings.show_timer   = _G.GameConfig.show_timer
+    Save.data.settings.crt          = _G.GameConfig.crt_enabled
     Save.write()
 end
 
@@ -124,7 +134,7 @@ function Save.saveRunState()
                 game_state = {
                     timer = _G.game_timer,
                     seed = Seed.current,
-                    mode = _G.game_mode
+                    mode = _G.difficulty
                 },
                 rewards_info = {
                     reroll_cost = Rewards.reroll_cost
@@ -156,10 +166,14 @@ function Save.loadRun()
     
     Seed.set(r.game_state.seed)
     _G.game_timer = r.game_state.timer
-    _G.game_mode = r.game_state.mode
+    _G.difficulty = r.game_state.mode
     
     Wave.current_wave = r.wave_info.current
     Wave.wave_final = r.wave_info.final
+    -- Restaura também current_mode (não só wave_final): sem isso, o
+    -- resto da config do modo (boss_freq, can_spawn_boss) ficava presa
+    -- no padrão NORMAL após um load, mesmo numa run Impossível/Insano.
+    Wave.current_mode = r.game_state.mode
     Wave.infinito = r.wave_info.infinito
     Wave.score = r.wave_info.score
     Wave.active = true

@@ -14,6 +14,7 @@ local Waves = require("wave")
 local Seed = require("seed")
 local Part = require("part")
 local Buttons = require("button")
+local Hitstop = require("hitstop")
 local PartReward = require("part_rewards")
 local Push = require('libs/push')
 local Camera = require("camera")
@@ -21,6 +22,7 @@ local Transitions = require("Transitions")
 local Lang = require('lang')
 local Shaders=require("shaders")
 local Save=require("save")
+local AchievementsUI = require("achievements_ui")
 
 -- 2. VARIÁVEIS GLOBAIS DO JOGO
 -- -------------------------------------------------------------
@@ -29,9 +31,24 @@ best_run = 0
 game_timer = 0
 spawn_timer = 0
 intro_timer = 120
-game_mode = 0
+difficulty = 0
 player = nil
 is_paused = false
+
+function applyCharacterById(id)
+    for i, char in ipairs(Characters.list) do
+        if char.id == id then
+            char.apply(player)
+            Characters.load(player)
+            return true
+        end
+    end
+    return false
+end
+
+-- No topo, substituir a linha "difficulty = 0" por:
+game_mode = "classic"  -- "classic", "endless", "daily"
+difficulty = 1         -- 1 a 6 (1=Fácil, 2=Normal, etc.)
 
 Menu_Musica = love.audio.newSource("assets/Menu divertido.mp3","stream")
 Luta_Musica = love.audio.newSource("assets/Lutando no natal.mp3","stream")
@@ -46,9 +63,7 @@ SFX_select=love.audio.newSource("assets/menu.wav","static")
 
 local DadoICON = love.graphics.newImage("assets/DadoICON.png") -- Use o ícone de vida
 
-local seed_input = ""
-local entering_seed = false
-
+local seed_input = ""          -- texto digitado
 -- Menus agora são funções ou chaves para pegar do Lang
 local menus = {
     difficulty = {
@@ -110,7 +125,7 @@ end
 
 -- Adicione "menu_options" na lista de estados de menu
 -- main.lua
-local menu_states = { "menu", "menu_difficulty", "menu_options", "final", "character_select", "rewards", "over", "tutorial", "intro", "Quem fez?", "victory"} -- Adicionado "victory"
+local menu_states = { "menu", "menu_difficulty", "menu_options", "menu_mods", "final", "character_select", "rewards", "over", "tutorial", "intro", "Quem fez?", "victory", "game_mode", "menu_mode", "menu_seed_input", "achievements"} -- Adicionado "victory", "menu_mods", "achievements"
 -- =============== Funções Auxiliares =========================
 
 function updateAudioVolume()
@@ -143,6 +158,122 @@ function toggleFullscreen()
 end
 
 -- =============================================================
+--         MENU DE MODS
+-- =============================================================
+-- Página atual do menu de mods (1-based). Resetada pra 1 sempre que
+-- a tela é aberta (ver botão "opt_mods" em menu_options).
+mods_menu_page = mods_menu_page or 1
+
+-- Mods pendentes de mudança nesta sessão (habilitados/desabilitados
+-- desde que o menu de mods foi aberto). Usado só pra mostrar o aviso
+-- "reinicie o jogo" de forma mais precisa (só quando algo mudou de fato).
+mods_pending_restart = mods_pending_restart or {}
+
+local MODS_PER_PAGE = 5
+
+function setupModsMenuButtons()
+    Buttons:clear()
+
+    local mods = _G.ModAPI and _G.ModAPI.loaded_mods or {}
+    local total = #mods
+    local total_pages = math.max(1, math.ceil(total / MODS_PER_PAGE))
+    mods_menu_page = Utils.clamp(1, mods_menu_page, total_pages)
+
+    local list_x = 20
+    local list_y = 30
+    local row_h = 34
+    local row_w = 512 - (list_x * 2)
+
+    if total == 0 then
+        Buttons:newLabel(list_x, list_y + 20, Lang.text("mods_empty"), Font, nil, {0,0,0,1})
+        Buttons:newLabel(list_x, list_y + 40, Lang.text("mods_empty_hint"), Font, nil, {0.2,0.2,0.2,1})
+    else
+        local start_i = (mods_menu_page - 1) * MODS_PER_PAGE + 1
+        local end_i = math.min(total, start_i + MODS_PER_PAGE - 1)
+
+        for i = start_i, end_i do
+            local mod = mods[i]
+            local row_index = i - start_i
+            local ry = list_y + row_index * row_h
+
+            -- Painel de fundo pra separar visualmente cada mod da lista
+            local panel_color = mod.enabled and {1, 1, 1, 0.10} or {0, 0, 0, 0.15}
+            Buttons:newPanel(list_x, ry, row_w, row_h - 4, panel_color)
+
+            -- Checkbox de habilitar/desabilitar
+            Buttons:newCheckbox(list_x + 8, ry + 7, 16, "", mod.enabled, function(checked)
+                SFX_select:play()
+                if checked then
+                    _G.ModAPI.enableMod(mod.id)
+                else
+                    _G.ModAPI.disableMod(mod.id)
+                end
+                mods_pending_restart[mod.id] = true
+                setupModsMenuButtons() -- redesenha a lista com o novo estado
+            end)
+
+            -- Nome + versão + autor
+            local title = string.format("%s  v%s", mod.name, tostring(mod.version))
+            local title_color = mod.enabled and {1,1,1,1} or {0.55,0.55,0.55,1}
+            Buttons:newLabel(list_x + 32, ry + 2, title, Font, nil, title_color)
+
+            local subtitle
+            if mod.error then
+                subtitle = Lang.text("mods_error", tostring(mod.error))
+            elseif not mod.enabled then
+                subtitle = Lang.text("mods_disabled_by", tostring(mod.author))
+            else
+                subtitle = Lang.text("mods_by", tostring(mod.author))
+            end
+            local subtitle_color = mod.error and {1, 0.4, 0.4, 1} or {0.75, 0.75, 0.75, 1}
+            Buttons:newLabel(list_x + 32, ry + 15, subtitle, Font, nil, subtitle_color)
+        end
+    end
+
+    -- Rodapé: paginação
+    local footer_y = list_y + (MODS_PER_PAGE * row_h) + 6
+    if total_pages > 1 then
+        Buttons:newButton(list_x, footer_y, 60, 20, "< " .. Lang.text("mods_prev"), function()
+            if mods_menu_page > 1 then
+                SFX_select:play()
+                mods_menu_page = mods_menu_page - 1
+                setupModsMenuButtons()
+            end
+        end)
+        Buttons:newLabel(list_x + 70, footer_y + 3, mods_menu_page .. "/" .. total_pages, Font, nil, {0,0,0,1})
+        Buttons:newButton(list_x + 110, footer_y, 60, 20, Lang.text("mods_next") .. " >", function()
+            if mods_menu_page < total_pages then
+                SFX_select:play()
+                mods_menu_page = mods_menu_page + 1
+                setupModsMenuButtons()
+            end
+        end)
+    end
+
+    -- Aviso de reinício se algo mudou nesta sessão
+    local has_pending = false
+    for _ in pairs(mods_pending_restart) do has_pending = true; break end
+    if has_pending then
+        Buttons:newLabel(list_x, footer_y + 26, Lang.text("mods_restart_notice"), Font, nil, {0.9, 0.7, 0.1, 1})
+    end
+
+    -- Abrir pasta de mods (facilita quem quer instalar um mod novo)
+    Buttons:newButton(512 - 20 - 150, footer_y, 150, 20, Lang.text("mods_open_folder"), function()
+        SFX_select:play()
+        love.system.openURL("file://" .. love.filesystem.getSaveDirectory() .. "/mods")
+    end)
+
+    -- Voltar
+    Buttons:newButton(192, 256 - 26, 128, 22, Lang.text("menu_back"), function()
+        SFX_select:play()
+        mods_pending_restart = {}
+        _G.switchState("menu_options")
+    end,
+    function () end,
+    Voltar_ICON)
+end
+
+-- =============================================================
 --         FUNÇÕES DE CONTROLE DE ESTADO E BOTÕES
 -- =============================================================
 
@@ -156,8 +287,48 @@ function setupButtonsForState(state)
         function ()
             
         end)
+    elseif state == "menu_mode" then
+        Buttons:clear()
+        Utils.setColor(0)
+        Buttons:newButton((512/2)-90, 60, 194, 24, Lang.text("mode_classic"), function()
+            SFX_select:play()
+            game_mode = "classic"
+            _G.switchState("menu_difficulty")
+        end)
+        Buttons:newButton((512/2)-90, 90, 194, 24, Lang.text("mode_seed"), function()
+            SFX_select:play()
+            seed_input = ""   -- limpa entrada anterior
+            _G.switchState("menu_seed_input")
+        end)
+        Buttons:newButton((512/2)-90, 120, 194, 24, Lang.text("mode_daily"), function()
+            SFX_select:play()
+            game_mode = "daily"
+            difficulty = 2
+            if _G.Achievements then _G.Achievements.on_daily_run_started() end
+            _G.switchState("character_select")
+        end)
+        Buttons:newButton((512/2)-90, 150, 194, 24, Lang.text("menu_back"), function()
+            SFX_select:play()
+            _G.switchState("menu")
+        end)
+    elseif state == "menu_seed_input" then
+        Buttons:clear()
+        -- Exibe instrução
+        Buttons:newLabel(128, 40, Lang.text("seed_instruction"), Font, nil, {1,1,1,1})
+        Buttons:newButton(192, 120, 128, 24, Lang.text("seed_confirm"), function()
+            SFX_select:play()
+            if #seed_input > 0 then
+                game_mode = "seed"
+                Seed.set(seed_input)   -- aplica a seed
+                _G.switchState("menu_difficulty")
+            end
+        end)
+        Buttons:newButton(192, 150, 128, 24, Lang.text("menu_back"), function()
+            SFX_select:play()
+            _G.switchState("menu_mode")
+        end)
     elseif state == "menu" then
-        local start_y = 65 -- Subi um pouco para caber mais botões
+        local start_y = 33 -- Subi um pouco para caber mais botões
         
         local record_wave = Save.data.records.best_wave or 0
         local record_time = Save.data.records.best_time or 0
@@ -194,14 +365,11 @@ function setupButtonsForState(state)
             function() end,
             Jogar_ICON) -- You can use a different icon if you have one
         end
-
         Buttons:newButton((512/2)-90, start_y, 194, 24, Lang.text("menu_play"), function()
             SFX_select:play()
-            -- Important: If starting new game, delete old run? 
-            -- Usually yes, or warn. For now, we overwrite on next save.
-            Save.deleteRun() 
+            Save.deleteRun()
             resetGame()
-            _G.switchState("menu_difficulty")
+            _G.switchState("menu_mode")         -- NOVO: Vai para a tela de seleção de modo
         end,
         function () end, Jogar_ICON)
         
@@ -214,8 +382,17 @@ function setupButtonsForState(state)
         end,
         Tutorial_ICON)
 
+        -- NOVO BOTÃO DE CONQUISTAS
+        Buttons:newButton((512/2)-90, start_y + 60, 194, 24, Lang.text("menu_achievements"), function()
+            SFX_select:play()
+            _G.switchState("achievements")
+        end,
+        function ()
+            
+        end)
+
         -- NOVO BOTÃO DE CONFIGURAÇÕES
-        Buttons:newButton((512/2)-90, start_y + 60, 194, 24, Lang.text("menu_options"), function()
+        Buttons:newButton((512/2)-90, start_y + 90, 194, 24, Lang.text("menu_options"), function()
             SFX_select:play()
             _G.switchState("menu_options")
         end,
@@ -224,7 +401,7 @@ function setupButtonsForState(state)
         end,
         Config_ICON)
 
-        Buttons:newButton((512/2)-90, start_y + 90, 194, 24, Lang.text("intro_review"), function()
+        Buttons:newButton((512/2)-90, start_y + 120, 194, 24, Lang.text("intro_review"), function()
             SFX_select:play()
             _G.switchState("intro")
         end,
@@ -233,13 +410,13 @@ function setupButtonsForState(state)
         end,
         Voltar_ICON)
         
-        Buttons:newButton((512/2)-90, start_y + 120, 194, 24, Lang.text("menu_quem_fez"), function()
+        Buttons:newButton((512/2)-90, start_y + 150, 194, 24, Lang.text("menu_quem_fez"), function()
             _G.switchState("Quem fez?")
         end,
         function ()
             
         end)
-        Buttons:newButton((512/2)-90, start_y + 150, 194, 24, Lang.text("menu_exit"), function()
+        Buttons:newButton((512/2)-90, start_y + 180, 194, 24, Lang.text("menu_exit"), function()
             love.event.quit()
         end,
         function ()
@@ -248,12 +425,12 @@ function setupButtonsForState(state)
         Exit_ICON)
 
     elseif state == "menu_options" then
-        local start_y = 40
-        local label_x = 100 -- Posição do Texto
+        local start_y = 32
+        local label_x = 128 -- Posição do Texto
         local slider_x = 220 -- Posição do Slider
         
         -- 1. Idioma (Botão normal)
-         Buttons:newButton(192, 40, 160, 24, Lang.text("opt_lang", string.upper(Lang.current)), function()
+        Buttons:newButton(192, start_y, 160, 24, Lang.text("opt_lang", string.upper(Lang.current)), function()
             SFX_select:play()
             local novo = (Lang.current == "pt-br") and "en" or "pt-br"
             Lang.setLanguage(novo)
@@ -262,10 +439,10 @@ function setupButtonsForState(state)
         end, function() end, Terra_ICON)
 
         -- 2. Volume Música (SLIDER)
-        Buttons:newLabel(label_x, start_y + 35, Lang.text("opt_music", ""), Font, nil, {0,0,0,1})
+        Buttons:newLabel(label_x, start_y + 30, Lang.text("opt_music", ""), Font, nil, {0,0,0,1})
         
         -- AGORA DIVIDE E MULTIPLICA POR 100
-        Buttons:newSlider(slider_x, start_y + 35, 120, 16, GameConfig.music_vol / 100, function(val)
+        Buttons:newSlider(slider_x, start_y + 30, 120, 16, GameConfig.music_vol / 100, function(val)
             -- Multiplica por 100 e arredonda. Ex: 0.35 vira 35.
             GameConfig.music_vol = math.floor(val * 100)
             updateAudioVolume()
@@ -273,10 +450,10 @@ function setupButtonsForState(state)
         end)
 
         -- 3. Volume SFX (SLIDER)
-        Buttons:newLabel(label_x, start_y + 65, Lang.text("opt_sfx", ""), Font, nil, {0,0,0,1})
+        Buttons:newLabel(label_x, start_y + 54, Lang.text("opt_sfx", ""), Font, nil, {0,0,0,1})
         
         -- AGORA DIVIDE E MULTIPLICA POR 100
-        Buttons:newSlider(slider_x, start_y + 65, 120, 16, GameConfig.sfx_vol / 100, function(val)
+        Buttons:newSlider(slider_x, start_y + 54, 120, 16, GameConfig.sfx_vol / 100, function(val)
             GameConfig.sfx_vol = math.floor(val * 100)
             if math.random() < 0.25 then SFX_select:play() end
             updateAudioVolume()
@@ -284,7 +461,7 @@ function setupButtonsForState(state)
         end)
         -- 4. Timer Speedrun (Botão Toggle)
         local state_timer = GameConfig.show_timer and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 95, 194+32, 24, Lang.text("opt_timer", state_timer), function()
+        Buttons:newButton(192, start_y + 80, 194+32, 22, Lang.text("opt_timer", state_timer), function()
             SFX_select:play()
             GameConfig.show_timer = not GameConfig.show_timer
             setupButtonsForState("menu_options")
@@ -297,7 +474,7 @@ function setupButtonsForState(state)
 
         -- 5. Fullscreen (Botão Toggle)
         local state_full = GameConfig.fullscreen and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 125, 194+32, 24, Lang.text("opt_fullscreen", state_full), function()
+        Buttons:newButton(192, start_y + 104, 194+32, 22, Lang.text("opt_fullscreen", state_full), function()
             SFX_select:play()
             toggleFullscreen()
             setupButtonsForState("menu_options")
@@ -309,7 +486,7 @@ function setupButtonsForState(state)
 
         -- No setupButtonsForState("menu_options"), altere o botão de música:
         local music_label = GameConfig.musica_antiga and Lang.text("state_on") or Lang.text("state_off")
-        Buttons:newButton(192, start_y + 155, 194+32, 24, Lang.text("opt_old_music", music_label), function()
+        Buttons:newButton(192, start_y + 128, 194+32, 22, Lang.text("opt_old_music", music_label), function()
             SFX_select:play()
             GameConfig.musica_antiga = not GameConfig.musica_antiga
             
@@ -333,10 +510,11 @@ function setupButtonsForState(state)
             function ()
                 
             end,
-            Musica_ICON)
+            Musica_ICON
+        )
 
         -- Voltar
-        Buttons:newButton(192, start_y + 190, 194, 24, Lang.text("menu_back"), function()
+        Buttons:newButton(192, start_y + 185, 194, 24, Lang.text("menu_back"), function()
             SFX_select:play()
             _G.switchState("menu")
         end,
@@ -344,6 +522,25 @@ function setupButtonsForState(state)
             
         end,
         Voltar_ICON)
+
+        -- 6. Mods (abre o menu de gerenciamento de mods)
+        local n_mods = _G.ModAPI and #_G.ModAPI.loaded_mods or 0
+        Buttons:newButton(8, start_y + 185, 194-64, 24, Lang.text("opt_mods", n_mods), function()
+            SFX_select:play()
+            mods_menu_page = 1
+            _G.switchState("menu_mods")
+        end,
+        function ()
+            
+        end,
+        Config_ICON)
+
+    elseif state == "menu_mods" then
+        setupModsMenuButtons()
+
+    elseif state == "achievements" then
+        AchievementsUI.setupButtons(Buttons, SFX_select)
+
     elseif state == "over" then
         Save.deleteRun()
         Save.checkRecord(Waves.current_wave, game_timer)
@@ -362,9 +559,8 @@ function setupButtonsForState(state)
         for i, option_key in ipairs(menus.difficulty) do
             local btn = Buttons:newButton((512/2)-145, 60 + (i * 28), 256+24, 24, Lang.text(option_key), function()
                 SFX_select:play()
-                game_mode = i
+                difficulty = i
                 _G.switchState("character_select")
-                Waves.start()
             end,
             function ()
                 
@@ -375,6 +571,7 @@ function setupButtonsForState(state)
         Buttons:newButton(192, 100, 128, 24, Lang.text(menus.end_game[1]), function()
             Waves.enable_infinite_mode()
             Waves.active = true
+            if _G.Achievements then _G.Achievements.on_infinite_mode_enabled() end
             SFX_select:play()
             _G.switchState("play")
             if Musica_Atual then Musica_Atual:stop() end
@@ -409,7 +606,8 @@ function setupButtonsForState(state)
                 y = 24 + ((i - 8) * 24)
             end
 
-            Buttons:newButton(x, y, 128+32, 22, char.get_name(), function()
+            local btn_label = Characters.isUnlocked(char.id) and char.get_name() or Lang.text("char_locked_label")
+            Buttons:newButton(x, y, 128+32, 22, btn_label, function()
                 Characters.selected_index = i
                 Characters.keypressed("x")
                 game_timer=0
@@ -420,6 +618,9 @@ function setupButtonsForState(state)
         end
     elseif state == "victory" then
         Save.checkRecord(Waves.current_wave, game_timer)
+        if _G.Achievements then
+            _G.Achievements.on_victory(player, player and player.took_damage or false)
+        end
         Buttons:newButton(192, 256-32, 128, 24, Lang.text("menu_back"), function()
             SFX_select:play()
             Save.deleteRun() -- Victory -> Back to menu = Run ends
@@ -526,32 +727,54 @@ function _G.performSwitch(newState, ...)
         Musica_Atual:setVolume(0.25)
         Musica_Atual:setLooping(true)
     elseif newState == "rewards" then
-        Rewards.generate(3)
+        Rewards.generate()
+    elseif newState == "achievements" then
+        AchievementsUI.reset()
     end
     
     setupButtonsForState(newState)
+
+    if _G.ModAPI then
+        _G.ModAPI.trigger("state_change", newState, _G.__previous_game_state)
+    end
+    _G.__previous_game_state = newState
 end
 
 function resetGame()
     print("Reiniciando o jogo...")
+    
+    -- Configurar seed
+    if game_mode == "daily" then
+        Seed.new_random_por_dia()
+    elseif game_mode == "seed" then
+        -- Seed já foi definida no momento da escolha, não precisa refazer
+    else
+        Seed.new_random()
+    end
+    
     score = 0
     game_timer = 0
     spawn_timer = 0
-    Waves.infinito = false
     player = Player.new()
     Enemies.reset()
-    Waves.start()
+    -- NOTA: NÃO chamamos Waves.start aqui. Neste ponto o jogador ainda
+    -- nem escolheu modo/dificuldade (resetGame roda ao clicar "Jogar",
+    -- antes de menu_mode/menu_difficulty) — Waves.wave_final ficaria
+    -- configurado com valores errados/antigos. A configuração real das
+    -- ondas (Waves.start com difficulty já escolhida) agora acontece em
+    -- Characters.keypressed(), no momento em que a partida de fato
+    -- começa (character_select -> play).
+    
     if Musica_Atual then
         local pos = Musica_Atual:tell()
         Musica_Atual:stop()
-        -- Lógica simples: se estava tocando luta, toca a versão de luta escolhida
         if GameConfig.musica_antiga == false then
             Musica_Atual = Menu_Musica
         else
             Musica_Atual = Musica_Menu_Antiga
         end
         Musica_Atual:play()
-        Musica_Atual:seek(pos) -- Tenta manter a sincronia
+        Musica_Atual:seek(pos)
         Musica_Atual:setLooping(true)
     end
 end
@@ -563,17 +786,29 @@ function updateBackgrounds(dt)
 end
 
 function love.load()
+    -- =============================================================
+    --   DEBUG: liberar tudo (conquistas + personagens)
+    -- =============================================================
+    -- Deixe `true` durante desenvolvimento pra pular o grind e testar
+    -- qualquer personagem/tela sem precisar desbloquear de verdade.
+    -- NÃO afeta o save em disco — é só um "cheat" em memória; volte
+    -- pra `false` antes de gerar a build final do jogo.
+    _G.DEBUG_UNLOCK_ALL = true
+
     GameConfig = {
         music_vol = 12,
         sfx_vol = 20,
         show_timer   = true,
         fullscreen   = false,
         musica_antiga= false,
+        crt_enabled  = false,
     }
+
+    skyShader = love.graphics.newShader("skyShader.glsl")
 
     local Discord = require("libs/discordRPC")
 
-    local appId = "1469798601382301950"
+    local appId = "1535565364606533672"
     
     _G.Discord = Discord
     
@@ -582,23 +817,33 @@ function love.load()
     presence = {
         details = "Christmas-like remaked",
         state = "Playing",
-        largeImageKey = "icon_discord", -- Nome da imagem que você subiu no portal
+        largeImageKey = "christmas", -- Nome da imagem que você subiu no portal
         largeImageText = "A Roguelike bullet hell by riko",
-        startTimestamp = os.time(), -- Mostra o tempo decorrido "00:00 elapsed"
+        startTimestamp =    os.time(os.date("*t")), -- Mostra o tempo decorrido "00:00 elapsed"
         smallImageText = "Christmas never ends"
     }
 
     _G.Discord.updatePresence(presence)
+    _G.Discord.updateMenu()
 
     Save.load()
+    _G.Achievements = require("achievements")
+    _G.Achievements.init(Save)
+    Characters.initSave(Save)
     Seed.new_random()
     love.graphics.setDefaultFilter("nearest", "nearest")
     
-    Font = love.graphics.newFont("assets/font.ttf", 8)
+    Font = love.graphics.newFont("assets/font.ttf", 11)
     love.graphics.setFont(Font)
 
     Enemies.load_assets()
-    
+
+    -- Carrega mods (mods/ dentro da pasta de save do jogo).
+    -- Precisa vir depois de Enemies.load_assets() (presets/sprites já existem)
+    -- e antes de Player.new() (mods podem definir Player.on_new).
+    local ModLoader = require("modloader")
+    ModLoader.load_all()
+
     player = Player.new()
     Characters.load(player)
     -- Lógica simples: se estava tocando luta, toca a versão de luta escolhida
@@ -660,7 +905,7 @@ function love.load()
         touch_controls.action_button.x = w - 80
         touch_controls.action_button.y = h - 80
     end
-    setupTouchControls(Push:getDimensions())
+    setupTouchControls(Push:getDimensions(), Push:getDimensions())
     
     _G.switchState("intro")
 end
@@ -670,6 +915,14 @@ function love.update(dt)
     if GameState.current == "play" and is_paused then
         return
     end
+
+    -- Hitstop: avança sempre com o dt REAL do frame (senão o timer do
+    -- hitstop nunca andaria enquanto ele mesmo está ativo). Só o dt
+    -- usado pelo GAMEPLAY (inimigos, player, ondas) é escalado logo
+    -- abaixo — câmera, partículas de UI, transições de tela e botões
+    -- continuam em tempo real de propósito, senão a interface inteira
+    -- travaria junto por causa de um efeito que devia ser só do combate.
+    Hitstop.update(dt)
 
     updateBackgrounds(dt)
     Camera:update(dt)
@@ -686,7 +939,7 @@ function love.update(dt)
     if is_menu then
         Buttons:update(dt)
     end
-    
+
     if gamepad and player then
         local stick_x = gamepad:getGamepadAxis("leftx")
         local stick_y = gamepad:getGamepadAxis('lefty')
@@ -707,7 +960,12 @@ function love.update(dt)
             _G.switchState("menu")
         end
     elseif GameState.current == "play" then
-        game_timer = game_timer + dt
+        -- game_dt: dt de gameplay, escalado pelo hitstop (quase 0
+        -- enquanto ele está ativo). real dt continua disponível como
+        -- `dt` pra quem precisar (ex: os corpos voando em enemies.lua).
+        local game_dt = dt * Hitstop.getTimeScale()
+
+        game_timer = game_timer + game_dt
         if touch_controls.joystick_active then
             local jc, jp = touch_controls.joystick_center, touch_controls.joystick_pos
             local dx_vec, dy_vec = jp.x - jc.x, jp.y - jc.y
@@ -719,11 +977,13 @@ function love.update(dt)
                 player.dx, player.dy = 0, 0
             end
         end
-        Enemies.update(dt, player)
-        player:update(dt, Enemies.get_all(), Waves.wave_delay)
-        Waves.update(dt, player) 
+        Enemies.update(game_dt, player, dt)
+        player:update(game_dt, Enemies.get_all(), Waves.wave_delay)
+        Waves.update(game_dt, player) 
+        if _G.ModAPI then _G.ModAPI.trigger("update", game_dt) end
         
-        if #Enemies.get_all() == 0 and Waves.waiting_next == true then
+        if #Enemies.get_all() == 0 and Waves.waiting_next == true and Hitstop.isActive()==false then
+            if _G.Achievements then _G.Achievements.on_wave_cleared(Waves.current_wave) end
             if not Waves.infinito and Waves.current_wave >= Waves.wave_final then
                 Waves.active = false
                 _G.switchState("final")
@@ -751,6 +1011,7 @@ function love.update(dt)
             Musica_Atual:stop()
             Save.deleteRun() -- Morreu: apaga o save
             Save.checkRecord(Waves.current_wave, game_timer) -- Salva recorde
+            if _G.ModAPI then _G.ModAPI.trigger("game_over") end
             _G.switchState("over")
         end
     end
@@ -777,7 +1038,13 @@ function love.update(dt)
 end
 
 local function drawWorld()
-    love.graphics.clear(41/255, 173/255, 255/255)
+    love.graphics.setShader(skyShader)
+
+    -- Desenha um retângulo que cobre toda a tela
+    love.graphics.rectangle("fill", 0, 0, love.graphics.getWidth(), love.graphics.getHeight())
+
+    -- Desativa o shader para desenhar o resto (HUD, jogador, etc.)
+    love.graphics.setShader()
 
     local function draw_map_placeholder()
         Utils.setColor(7)
@@ -813,6 +1080,24 @@ local function drawWorld()
         Utils.centerText(Lang.text("intro_4"), 56)
         Utils.setColor(10)
         Buttons:drawAll()
+    elseif GameState.current == "menu_seed_input" then
+        draw_map_placeholder()
+        Utils.setColor(0)
+        Utils.centerText(Lang.text("seed_instruction"), 30)
+        -- Desenha a caixa de texto
+        love.graphics.setColor(0.2, 0.2, 0.2, 0.8)
+        love.graphics.rectangle("fill", 192, 60, 128, 24)
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.rectangle("line", 192, 60, 128, 24)
+        -- Texto digitado
+        local display = seed_input .. (love.timer.getTime() % 1 > 0.5 and "_" or "")
+        love.graphics.print(display, 200, 65)
+        Buttons:drawAll()
+    elseif GameState.current == "menu_mode" then
+        draw_map_placeholder()
+        Utils.setColor(0)
+        Utils.centerText(Lang.text("mode_select_title"), 20)
+        Buttons:drawAll()
     elseif GameState.current == "menu" then
         draw_map_placeholder()
         Utils.setColor(0)
@@ -823,6 +1108,10 @@ local function drawWorld()
         Utils.setColor(0)
         Utils.centerText(Lang.text("diff_select"), 32)
         Buttons:drawAll()
+    elseif GameState.current == "achievements" then
+        draw_map_placeholder()
+        AchievementsUI.draw()
+        Buttons:drawAll()
     elseif GameState.current == "character_select" then
         draw_map_placeholder()
         Characters.draw()
@@ -832,6 +1121,7 @@ local function drawWorld()
         Camera:apply()
         player:draw()
         Enemies.draw()
+        if _G.ModAPI then _G.ModAPI.trigger("draw") end
         Buttons:drawAll()
         Utils.setColor(0)
         
@@ -1149,6 +1439,12 @@ local function drawWorld()
         Utils.setColor(0)
         Utils.centerText(Lang.text("menu_options"), 20)
         Buttons:drawAll()
+
+    elseif GameState.current == "menu_mods" then
+        draw_map_placeholder()
+        Utils.setColor(0)
+        Utils.centerText(Lang.text("mods_title"), 12)
+        Buttons:drawAll()
     end
 
     -- DESENHO DO MENU DEBUG
@@ -1199,6 +1495,8 @@ end
 function love.draw()
     Push:start()
     drawWorld()
+    if _G.ModAPI then _G.ModAPI.trigger("post_process") end
+    love.graphics.setShader()
     Push:finish()
 end
 
@@ -1208,7 +1506,7 @@ function love.resize(w, h)
 end
 
 function love.textinput(t)
-    if entering_seed and #seed_input < 6 then
+    if GameState.current == "menu_seed_input" and #seed_input < 6 then
         seed_input = seed_input .. string.upper(t)
     end
 end
@@ -1222,6 +1520,20 @@ function love.keypressed(key)
         Buttons:keypressed(key)
         return
     end
+    
+    if GameState.current == "menu_seed_input" then
+        if key == "backspace" then
+            seed_input = seed_input:sub(1, -2)
+        elseif key == "return" or key == "x" then
+            if #seed_input > 0 then
+                game_mode = "seed"
+                Seed.set(seed_input)
+                _G.switchState("menu_difficulty")
+            end
+        end
+        return
+    end
+    
     
     if GameState.current == "intro" then
         

@@ -24,7 +24,9 @@ end
 -- Define a seed atual
 function Seed.set(seed_str)
     Seed.current = seed_str
-    love.math.setRandomSeed(Seed.to_number(seed_str))
+    local num = Seed.to_number(seed_str)
+    love.math.setRandomSeed(num)
+    math.randomseed(num)
 end
 
 -- Retorna a seed atual

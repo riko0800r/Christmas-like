@@ -1,6 +1,11 @@
 -- utils.lua
 local Utils = {}
 
+-- LÖVE já expõe "utf8" como global (lib padrão do Lua 5.3+), mas
+-- declaramos explicitamente via require pra deixar a dependência
+-- clara e não depender de um global implícito.
+local utf8 = require("utf8")
+
 -- Paleta de cores padrão do PICO-8 (em formato 0-1 para LÖVE)
 Utils.pico8_colors = {
     [0]  = {0, 0, 0},           [1]  = {29, 43, 83},    [2]  = {126, 37, 83},   [3]  = {0, 135, 81},
@@ -63,30 +68,49 @@ end
 
 function Utils.safeText(str)
     if type(str) ~= "string" then return tostring(str) end
-    -- Substitui bytes inválidos por "?"
-    local ok, clean = pcall(function()
-        return str:utf8len() and str or str:gsub("[^%w%p%s]", "?")
-    end)
-    if ok then
-        return clean
-    else
-        -- se utf8len falhar, remove caracteres não ASCII
-        return (str:gsub("[^%w%p%s]", "?"))
+
+    -- Substitui bytes inválidos por "?", mas SEM quebrar acentos
+    -- (é, ê, ã, ç...): eles são UTF-8 válido (2 bytes cada), só não
+    -- são ASCII puro. O bug antigo aqui usava str:utf8len() — que não
+    -- existe como método de string em Lua/LÖVE (o certo é a função
+    -- utf8.len(str), da lib padrão "utf8") — então esse pcall sempre
+    -- falhava e caía no gsub("[^%w%p%s]", "?"). Como %w/%p/%s em Lua
+    -- só reconhecem bytes ASCII, cada acento (2 bytes) tinha os dois
+    -- bytes trocados por "?" individualmente, virando "é" -> "??".
+    --
+    -- A correção: usar utf8.len para VALIDAR que a string é UTF-8 bem
+    -- formado (nesse caso ela já pode ser devolvida como está, sem
+    -- gsub nenhum — não há bytes inválidos pra trocar). Só cai no
+    -- gsub ASCII-only se a string não for UTF-8 válido de verdade.
+    local ok, len = pcall(utf8.len, str)
+    if ok and len then
+        return str
     end
+
+    -- String não é UTF-8 válido (bytes realmente corrompidos/lixo):
+    -- aí sim trocamos qualquer byte fora do intervalo seguro por "?".
+    return (str:gsub("[^%w%p%s]", "?"))
 end
 
 
-function Utils.centerText(str, y,SafeTexto)
-    local Safe=SafeTexto or false
-    -- Presume uma fonte de 4px de largura, como no PICO-8
-    if Safe==true then
-        text = Utils.safeText(str or "")
-    else
-        text = str
-    end
-    local text_width = #str * 8
-    local x = ((128*4) - text_width) / 2
-    love.graphics.print(text, x,y)
+function Utils.centerText(str, y, SafeTexto)
+    local safe = SafeTexto or false
+    local text = safe and Utils.safeText(str or "") or (str or "")
+
+    -- Presume uma fonte de largura fixa por caractere (8px), como no
+    -- PICO-8. IMPORTANTE: a largura tem que ser calculada em cima do
+    -- MESMO texto que será desenhado (o já sanitizado, se safe==true)
+    -- — usar #str (o original, antes do safeText) aqui desalinhava a
+    -- centralização sempre que safeText mudava o comprimento da
+    -- string. Também usamos utf8.len em vez de # pra contar
+    -- CARACTERES visuais, não bytes (um acento é 1 caractere na tela,
+    -- mesmo ocupando 2 bytes).
+    local ok, char_count = pcall(utf8.len, text)
+    if not ok or not char_count then char_count = #text end
+
+    local text_width = char_count * 8
+    local x = ((128 * 4) - text_width) / 2
+    love.graphics.print(text, x, y)
 end
 
 return Utils

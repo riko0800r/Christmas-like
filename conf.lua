@@ -1,5 +1,4 @@
 function love.conf(t)
-    t.version = "11.5"                  -- The LÖVE version this game was made for (string)
     t.console = false                   -- Attach a console (boolean, Windows only)
   
     t.window.title = "Christmas-like"         -- The window title (string)

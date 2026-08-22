@@ -2,6 +2,7 @@ local Utils = require("utils")
 local part = require("part")
 local Camera= require("camera")
 local Shaders = require("shaders")
+local Hitstop = require("hitstop")
 
 local enemies_module = {}
 
@@ -23,6 +24,14 @@ local enemies = {}
 local hearts = {} -- Lista de corações no chão
 local coins = {} -- Lista de moedas no chão
 local sprite_sheets = {}
+
+-- "Corpo" do ÚLTIMO inimigo de uma onda, arremessado em 2.5D (some
+-- crescendo em direção à "câmera" e desaparece). Separado da lista
+-- `enemies` de propósito: assim ele nunca é tocado por dano, colisão,
+-- IA, etc — é puramente visual — e continua animando em tempo real
+-- mesmo durante o hitstop, que congela `enemies` mas não isto aqui
+-- (ver enemies_module.update_flying_corpses).
+local flying_corpses = {}
 local pi = math.pi
 local sqrt = math.sqrt
 local cos = math.cos
@@ -113,15 +122,6 @@ local EnemyPresets = {
         demage_scale=1/400,
         sprite=7 -- Use o sprite que preferir
     },
-    sniper = {
-        demage_preset=1, -- Dano alto
-        speed_base = 1.2, 
-        speed_scale = 1/16, 
-        hp_base = 3, 
-        hp_scale = 1/6, 
-        demage_scale=1/200, 
-        sprite=1,
-    },
     invocador = {
         demage_preset=1,
         speed_base = 0.75,
@@ -143,35 +143,6 @@ local EnemyPresets = {
         is_golden = true,
     },
 
-    espiral = {
-        demage_preset = 1,
-        speed_base = 1.5, 
-        speed_scale = 1/16, 
-        hp_base = 3, 
-        hp_scale = 1/8,
-        demage_scale = 1/300, 
-        sprite = 15,
-        spiral_angle = 0,
-        spiral_speed = 0.8,
-        spiral_radius = 40,
-        spiral_tighten = 0.95,
-        shoot_timer = 0,
-        shoot_rate = 30 * 2,
-    },
-
-    refletor = {
-        demage_preset = 0,
-        speed_base = 0.75, 
-        speed_scale = 1/16, 
-        hp_base = 6, 
-        hp_scale = 1/8,
-        demage_scale = 0,
-        sprite = 14,
-        shield_strength = 1.0,
-        reflect_timer = 0,
-        last_reflect_angle = 0,
-    },
-
     vampiro = {
         demage_preset = 1,
         speed_base = 1.5, 
@@ -185,6 +156,7 @@ local EnemyPresets = {
         drain_timer = 0,
         drain_rate = 60 * 0.75,
     },
+
 }
 
 function enemies_module.load_assets()
@@ -305,6 +277,9 @@ function enemies_module.spawn_enemy(tipo, x, y, Waves)
     end
 
     table_insert(enemies, enemy)
+
+    if _G.ModAPI then _G.ModAPI.trigger("enemy_spawn", enemy) end
+
     return enemy
 end
 
@@ -507,263 +482,6 @@ local function update_paladino(enemy, player, dt)
             changeState(enemy, "chase")
         end
     end
-end
-
-local function update_spike(enemy, player, dt)
-    if math.random() < 0.05 then
-        local angle = love.math.random() * math.pi * 2
-        enemy.dx = math.cos(angle) * (enemy.speed * 0.3)
-        enemy.dy = math.sin(angle) * (enemy.speed * 0.3)
-    end
-    
-    enemy.x = enemy.x + enemy.dx * dt * 60
-    enemy.y = enemy.y + enemy.dy * dt * 60
-    
-    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
-    if dist_p < enemy.damage_radius then
-        enemy.last_damage_time = enemy.last_damage_time or 0
-        enemy.last_damage_time = enemy.last_damage_time - dt
-        if enemy.last_damage_time <= 0 then
-            player:takeHit(enemy.contact_damage)
-            enemy.last_damage_time = 0.3
-        end
-        
-        local dx, dy = player.x - enemy.x, player.y - enemy.y
-        local mag = dist(0, 0, dx, dy)
-        if mag > 0 then
-            player.x = player.x + (dx/mag) * 2
-            player.y = player.y + (dy/mag) * 2
-        end
-    end
-    
-    if enemy.x < 16 then enemy.x = 16 end
-    if enemy.x > 512 - 16 then enemy.x = 512 - 16 end
-    if enemy.y < 16 then enemy.y = 16 end
-    if enemy.y > 256 - 16 then enemy.y = 256 - 16 end
-end
-
-local function update_espiral(enemy, player, dt)
-    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
-    
-    -- ======================== MOVIMENTO ========================
-    -- Aumenta a velocidade de rotação conforme fica mais perto
-    local speed_multiplier = 1 + (1 - math.min(1, dist_p / 200)) * 0.5
-    enemy.spiral_angle = (enemy.spiral_angle or 0) + enemy.spiral_speed * dt * 60 * speed_multiplier
-    
-    -- O raio da espiral diminui gradualmente (aperta)
-    local current_radius = enemy.spiral_radius * math.pow(enemy.spiral_tighten, enemy.spiral_angle / (2 * math.pi))
-    
-    -- Calcula a posição alvo em torno do player
-    local target_x = player.x + math.cos(enemy.spiral_angle) * current_radius
-    local target_y = player.y + math.sin(enemy.spiral_angle) * current_radius
-    
-    -- Movimento suave para a posição alvo
-    local dx = target_x - enemy.x
-    local dy = target_y - enemy.y
-    local mag = dist(0, 0, dx, dy)
-    
-    if mag > 0 then
-        enemy.dx = (dx / mag) * enemy.speed
-        enemy.dy = (dy / mag) * enemy.speed
-    end
-    
-    enemy.x = enemy.x + enemy.dx * dt * 60
-    enemy.y = enemy.y + enemy.dy * dt * 60
-    
-    -- ======================== ATAQUE ========================
-    -- Define a fase baseado na distância ao player
-    local phase = 1
-    if dist_p < 128 then phase = 2 end
-    if dist_p < 64 then phase = 3 end
-    
-    enemy.current_phase = phase
-    
-    -- Timer de tiro
-    enemy.shoot_timer = (enemy.shoot_timer or 0) + dt * 60
-    local shoot_rate = enemy.shoot_rate / phase  -- Mais rápido em fases altas
-    
-    if enemy.shoot_timer >= shoot_rate then
-        -- Padrão de tiro muda por fase
-        if phase == 1 then
-            -- FASE 1: 8 tiros simples em círculo
-            for i = 0, 7 do
-                local angle = (i / 8) * 2 * math.pi
-                local speed = 1.5
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(angle) * speed,
-                    dy = math.sin(angle) * speed,
-                    life_timer = 0
-                })
-            end
-            
-        elseif phase == 2 then
-            -- FASE 2: 8 tiros duplos (dois anéis com delay)
-            for i = 0, 7 do
-                local angle = (i / 8) * 2 * math.pi
-                local speed = 1.5
-                
-                -- Primeiro anel
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(angle) * speed,
-                    dy = math.sin(angle) * speed,
-                    life_timer = 0
-                })
-                
-                -- Segundo anel (offset angular)
-                local offset_angle = angle + (math.pi / 8)
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(offset_angle) * speed,
-                    dy = math.sin(offset_angle) * speed,
-                    life_timer = 0
-                })
-            end
-            
-        elseif phase == 3 then
-            -- FASE 3: 8 tiros triplos com padrão alternado
-            for i = 0, 7 do
-                local angle = (i / 8) * 2 * math.pi
-                local speed = 1.5
-                
-                -- 1º anel
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(angle) * speed,
-                    dy = math.sin(angle) * speed,
-                    life_timer = 0
-                })
-                
-                -- 2º anel (offset +45°)
-                local offset1 = angle + (math.pi / 4)
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(offset1) * speed,
-                    dy = math.sin(offset1) * speed,
-                    life_timer = 0
-                })
-                
-                -- 3º anel (offset -45°)
-                local offset2 = angle - (math.pi / 4)
-                table.insert(enemy.bullets, {
-                    x = enemy.x,
-                    y = enemy.y,
-                    dx = math.cos(offset2) * speed,
-                    dy = math.sin(offset2) * speed,
-                    life_timer = 0
-                })
-            end
-        end
-        
-        enemy.shoot_timer = 0
-    end
-    
-    -- Keep dentro dos limites
-    enemy.x = clamp(16, enemy.x, 512 - 16)
-    enemy.y = clamp(16, enemy.y, 256 - 16)
-end
-
-local function update_refletor(enemy, player, dt)
-    local dist_p = dist(enemy.x, enemy.y, player.x, player.y)
-    
-    -- ======================== ESTADO E FASE ========================
-    -- Calcula o estado de dano (0 = cheio, 1 = morrendo)
-    local health_ratio = enemy.lifes / enemy.max_hp
-    
-    -- Define a fase baseado no HP
-    local phase = 1
-    if health_ratio < 0.75 then phase = 2 end  -- Danificado
-    if health_ratio < 0.5 then phase = 3 end   -- Muito danificado
-    if health_ratio < 0.25 then phase = 4 end  -- Crítico
-    
-    enemy.current_phase = phase
-    
-    -- ======================== MOVIMENTO ========================
-    -- Comportamento defensivo: tenta manter distância, anda em volta
-    
-    if phase == 1 then
-        -- Fase 1: Movimento lento e padrão defensivo
-        if dist_p < 120 then
-            -- Se muito perto, foge
-            local dx, dy = enemy.x - player.x, enemy.y - player.y
-            local mag = dist(0, 0, dx, dy)
-            if mag > 0 then
-                enemy.dx = (dx / mag) * enemy.speed * 0.6
-                enemy.dy = (dy / mag) * enemy.speed * 0.6
-            end
-        else
-            -- Movimento errático defensivo
-            if not enemy.wander_timer or enemy.wander_timer <= 0 then
-                local angle = love.math.random() * 2 * math.pi
-                enemy.wander_dx = math.cos(angle) * enemy.speed * 0.5
-                enemy.wander_dy = math.sin(angle) * enemy.speed * 0.5
-                enemy.wander_timer = 120  -- Muda direção a cada 2 segundos
-            end
-            enemy.dx = enemy.wander_dx
-            enemy.dy = enemy.wander_dy
-            enemy.wander_timer = (enemy.wander_timer or 0) - 1
-        end
-        
-    elseif phase == 2 or phase == 3 then
-        -- Fase 2-3: Mais agressivo, tenta ficar próximo mas defensivo
-        if dist_p > 80 then
-            -- Aproxima-se um pouco
-            local dx, dy = player.x - enemy.x, player.y - enemy.y
-            local mag = dist(0, 0, dx, dy)
-            if mag > 0 then
-                enemy.dx = (dx / mag) * enemy.speed * 0.7
-                enemy.dy = (dy / mag) * enemy.speed * 0.7
-            end
-        else
-            -- Circula ao redor do player
-            if not enemy.circle_angle then enemy.circle_angle = 0 end
-            enemy.circle_angle = enemy.circle_angle + 2 * dt * 60
-            
-            local circle_radius = 100
-            enemy.dx = math.cos(enemy.circle_angle) * enemy.speed * 0.8
-            enemy.dy = math.sin(enemy.circle_angle) * enemy.speed * 0.8
-        end
-        
-    else -- phase == 4
-        -- Fase 4 (Crítico): Muito agressivo, praticamente anda em volta do player
-        if not enemy.aggressive_angle then enemy.aggressive_angle = 0 end
-        enemy.aggressive_angle = enemy.aggressive_angle + 4 * dt * 60
-        
-        local circle_radius = 80
-        local target_x = player.x + math.cos(enemy.aggressive_angle) * circle_radius
-        local target_y = player.y + math.sin(enemy.aggressive_angle) * circle_radius
-        
-        local dx = target_x - enemy.x
-        local dy = target_y - enemy.y
-        local mag = dist(0, 0, dx, dy)
-        
-        if mag > 0 then
-            enemy.dx = (dx / mag) * enemy.speed
-            enemy.dy = (dy / mag) * enemy.speed
-        end
-    end
-    
-    -- Aplica movimento
-    enemy.x = enemy.x + enemy.dx * dt * 60
-    enemy.y = enemy.y + enemy.dy * dt * 60
-    
-    -- ======================== ESCUDO/REFLEXÃO ========================
-    -- O escudo fica mais fraco conforme toma dano
-    local shield_strength = enemy.shield_strength * health_ratio
-    enemy.current_shield_strength = shield_strength
-    
-    -- Timer de recarga (depois de refletir muito, precisa "carregar")
-    enemy.reflect_cooldown = (enemy.reflect_cooldown or 0) - dt * 60
-    
-    -- Keep dentro dos limites
-    enemy.x = clamp(16, enemy.x, 512 - 16)
-    enemy.y = clamp(16, enemy.y, 256 - 16)
 end
 
 local function update_vampiro(enemy, player, dt)
@@ -1102,9 +820,6 @@ local update_functions = {
     paladino = update_paladino,
     invocador = update_invocador,
     renas_especial = update_flee,
-    spike=update_spike,
-    espiral=update_espiral,
-    refletor=update_refletor,
     vampiro=update_vampiro,
 }
 
@@ -1167,6 +882,121 @@ function enemies_module.update_enemy(enemy, player, dt)
         enemy.dead = true
     end
 end
+
+-- ================== ÚLTIMO INIMIGO: VOO 2.5D + HITSTOP ==================
+--
+-- Quando o ÚLTIMO inimigo de uma onda morre, em vez de só sumir da
+-- lista como qualquer outro, ele vira um "flying corpse": continua
+-- sendo desenhado por ~0.9s, girando e crescendo de escala (efeito
+-- 2.5D de "voar em direção à câmera/pra fora da tela"), com uma
+-- sombra que encolhe no chão pra reforçar a sensação de profundidade.
+-- Junto disso, dispara um hitstop curto — congela o RESTO do jogo por
+-- uma fração de segundo (o mundo "sente o impacto"), mas o próprio
+-- corpo voando continua animando normalmente, porque ele roda com dt
+-- real e não com o dt (escalado) do resto do gameplay.
+local FLIGHT_DURATION = 0.9
+local HITSTOP_DURATION = 0.05
+local HITSTOP_TIMESCALE = 0.05
+
+local function spawn_flying_corpse(enemy)
+    if not enemy.image then return end -- sem sprite, nada pra desenhar voando
+
+    -- Direção de "arremesso": mantém a direção que o inimigo já estava
+    -- indo (se tiver dx/dy), senão sorteia uma, pra sempre parecer que
+    -- foi mandado pra algum lugar, não só sumindo no lugar.
+    local dx, dy = enemy.dx or 0, enemy.dy or 0
+    local dlen = sqrt(dx * dx + dy * dy)
+    if dlen < 0.01 then
+        local ang = math.random() * pi * 2
+        dx, dy = cos(ang), sin(ang)
+    else
+        dx, dy = dx / dlen, dy / dlen
+    end
+
+    table_insert(flying_corpses, {
+        x = enemy.x, y = enemy.y,
+        start_x = enemy.x, start_y = enemy.y,
+        vx = dx * 90, vy = dy * 90,        -- desliza um pouco enquanto "voa pra longe"
+        image = enemy.image,
+        sx = enemy.sx or 1, sy = enemy.sy or 1,
+        flpx = enemy.flpx or 1,
+        rot = 0,
+        rot_speed = (math.random() < 0.5 and -1 or 1) * (10 + math.random() * 4), -- rad/s, cambalhota
+        t = 0,
+        duration = FLIGHT_DURATION,
+        is_golden = enemy.is_golden,
+    })
+end
+
+-- Atualiza os corpos voando com dt REAL (nunca escalado pelo
+-- hitstop) — chamado incondicionalmente em enemies_module.update,
+-- fora do bloco que recebe o dt de gameplay.
+function enemies_module.update_flying_corpses(real_dt)
+    for i = #flying_corpses, 1, -1 do
+        local c = flying_corpses[i]
+        c.t = c.t + real_dt
+        local p = clamp(0, c.t / c.duration, 1)
+
+        -- Atrito: desacelera rápido, pra não sair voando pra sempre pela tela.
+        c.vx = c.vx * (1 - real_dt * 3)
+        c.vy = c.vy * (1 - real_dt * 3)
+        c.x = c.x + c.vx * real_dt
+        c.y = c.y + c.vy * real_dt
+
+        c.rot = c.rot + c.rot_speed * real_dt
+
+        if c.t >= c.duration then
+            table_remove(flying_corpses, i)
+        end
+    end
+end
+
+-- easeOutQuad: sobe rápido no começo, desacelera — a escala "aumenta"
+-- (efeito de vir em direção à câmera) seguindo essa curva, o alpha
+-- (fade out) segue o inverso perto do fim.
+local function easeOutQuad(t) return 1 - (1 - t) * (1 - t) end
+
+function enemies_module.draw_flying_corpses()
+    for _, c in ipairs(flying_corpses) do
+        local p = clamp(0, c.t / c.duration, 1)
+
+        -- 2.5D: a escala CRESCE de 1x até ~2.6x conforme o "tempo de
+        -- voo" passa — simula o corpo vindo em direção à câmera (fora
+        -- do plano do jogo) em vez de só andar pela tela em 2D. Some
+        -- (alpha) só no último terço, pra não sumir de repente.
+        local grow = 1 + easeOutQuad(p) * 1.6
+        local alpha = 1
+        if p > 0.66 then
+            alpha = 1 - ((p - 0.66) / 0.34)
+        end
+
+        -- Sombra no chão: encolhe conforme o corpo "sobe"/cresce, reforçando
+        -- a profundidade (mesmo truque visual clássico de jogos 2D com pulo).
+        local shadow_scale = math.max(0.1, 1 - p)
+        love.graphics.setColor(0, 0, 0, 0.35 * alpha)
+        love.graphics.ellipse("fill", c.start_x, c.start_y + 6, 6 * shadow_scale, 2 * shadow_scale)
+
+        if c.is_golden then Utils.setColor(10) else Utils.setColor(7) end
+        love.graphics.setColor(1, 1, 1, alpha) -- sobrescreve o alpha da paleta, mantendo a cor
+        if c.is_golden then
+            love.graphics.setColor(1, 0.85, 0, alpha)
+        end
+
+        love.graphics.draw(
+            c.image,
+            c.x,
+            c.y,
+            c.rot,
+            2 * c.sx * c.flpx * grow,
+            2 * c.sy * grow,
+            c.image:getWidth() / 2,
+            c.image:getHeight() / 2
+        )
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- ==========================================================================
 
 local function draw_enemy(enemy)
     if enemy.image then
@@ -1369,9 +1199,11 @@ function enemies_module.update_coins(dt, player)
 
         -- Coleta
         if Utils.col(c, player) then
-            player.money = (player.money or 0) + c.value
             SFX_Pickup_Coin:play()
             table.remove(coins, i)
+            player.money = (player.money or 0) + c.value
+            player.coins_collected = (player.coins_collected or 0) + c.value
+            if _G.Achievements then _G.Achievements.on_gold_earned(c.value) end
         end
     end
 end
@@ -1394,11 +1226,18 @@ end
 
 -- ================================================================
 
-function enemies_module.update(dt, player)
+function enemies_module.update(dt, player, real_dt)
+    -- real_dt: dt "de verdade" do frame (não escalado por hitstop). É
+    -- opcional/retrocompatível — se quem chama não passar (código
+    -- antigo, ou chamadas fora de main.lua), cai de volta pro próprio
+    -- `dt`, então nada quebra; só o efeito de "corpo voando continua
+    -- em tempo real durante o hitstop" some nesse caso.
+    real_dt = real_dt or dt
+
     Shaders:update(dt)
     
     golden_spawn_timer = golden_spawn_timer + dt
-    if golden_spawn_timer >= 3.0 then -- A cada 3 segundos
+    if golden_spawn_timer >= 4.5 then -- A cada 4.5 segundos
         golden_spawn_timer = 0
         local golden_chance = 0.025
         if player.relics and player.relics["Sorte Dourada"] then
@@ -1408,7 +1247,7 @@ function enemies_module.update(dt, player)
             local x = math.random(32, 128*4 - 32)
             local y = math.random(32, 128*2 - 32)
             local e = enemies_module.spawn_enemy("renas_especial", x, y, player.waves_manager or require("wave"))
-            if e then 
+            if e then
                 print("🌟 RENA DOURADA SPAWNOU!")
                 part.add(x, y, 25, 10) -- Explosão visual de spawn
             end
@@ -1420,6 +1259,8 @@ function enemies_module.update(dt, player)
         enemies_module.update_enemy(e, player, dt)
         Shaders:updateEnemyFlash(e, dt)
         if e.dead then
+            if _G.ModAPI then _G.ModAPI.trigger("enemy_death", e) end
+            if _G.Achievements then _G.Achievements.on_enemy_death(e, is_boss(e.tipo)) end
             if player.death_explosion then
                 local explosion_damage = player.demage * (player.explosion_damage or 0.5)
                 local explosion_radius = player.explosion_radius or 24
@@ -1440,7 +1281,7 @@ function enemies_module.update(dt, player)
                 
                 -- Som de explosão
                 local SFX_Explosion = love.audio.newSource("assets/hitHurt.wav", "static")
-                SFX_Explosion:setPitch(0.3)
+                SFX_Explosion:setPitch(0.3+math.random(0.1,0.5))
                 SFX_Explosion:setVolume(0.25)
                 SFX_Explosion:play()
             end 
@@ -1485,13 +1326,33 @@ function enemies_module.update(dt, player)
             if math.random() < heart_chance then
                 enemies_module.spawn_heart(e.x, e.y)
             end
-            
+
+            -- ÚLTIMO INIMIGO DA ONDA: hitstop + arremesso 2.5D. A checagem
+            -- é #enemies == 1 (não == 0) porque `e` ainda NÃO foi removido
+            -- da lista neste ponto — ele é o próprio elemento que está
+            -- prestes a sair, então "restar só ele" significa "ele era o
+            -- último". Fica DEPOIS dos drops acima de propósito: assim
+            -- moeda/coração/etc já foram decididos com as regras normais,
+            -- e só o hitstop/voo (puramente de apresentação) reage à
+            -- condição de "última morte".
+            if #enemies == 1 then
+                Hitstop.trigger(HITSTOP_DURATION, { scale = HITSTOP_TIMESCALE })
+                Camera:shake(0.15, 2) -- leve impacto de câmera, reforça o "peso" do hitstop
+                spawn_flying_corpse(e)
+            end
+
             table.remove(enemies, i)
         end
     end
     
     enemies_module.update_hearts(dt, player) -- Atualiza corações
     enemies_module.update_coins(dt, player)
+
+    -- Corpos voando (efeito 2.5D do último inimigo) sempre em tempo
+    -- real: precisam continuar a animação mesmo quando `dt` acima
+    -- está escalado quase a zero por causa do hitstop que a própria
+    -- morte deles disparou.
+    enemies_module.update_flying_corpses(real_dt)
     
     resolve_enemy_collisions()
 end
@@ -1556,12 +1417,19 @@ function enemies_module.draw()
             draw_boss_healthbar(enemy)
         end
     end
+
+    -- Por cima de tudo: o corpo do último inimigo, voando e crescendo
+    -- em 2.5D. Fica depois dos inimigos "vivos" de propósito — na
+    -- prática não deveria haver nenhum nesse momento (é o ÚLTIMO), mas
+    -- assim ele sempre aparece por cima de barras de vida/efeitos.
+    enemies_module.draw_flying_corpses()
 end
 
 function enemies_module.reset()
     enemies = {}
     hearts  = {} -- Limpa corações ao resetar
     coins   = {}
+    flying_corpses = {}
 end
 
 function enemies_module.launch_chasing_bullet(enemy)
@@ -1590,6 +1458,66 @@ function enemies_module.healAll(amount)
     for _, enemy in ipairs(enemies) do
         enemy.lifes = math.min(enemy.lifes + amount, enemy.max_hp)
     end
+end
+
+function enemies_module.get_snapshot()
+    local snap = {}
+    for _, e in ipairs(enemies) do
+        -- Copia apenas campos serializáveis (números, strings, booleanos)
+        local ecopy = {}
+        for k, v in pairs(e) do
+            if type(v) ~= "function" and type(v) ~= "userdata" and type(v) ~= "thread" then
+                ecopy[k] = v
+            end
+        end
+        -- Remove referências circulares se necessário
+        table.insert(snap, ecopy)
+    end
+    return snap
+end
+
+function enemies_module.load_snapshot(snapshot)
+    enemies = {}
+    for _, edata in ipairs(snapshot) do
+        -- Recria o inimigo usando a tabela de dados (não chama spawn_enemy)
+        local e = edata
+        table.insert(enemies, e)
+    end
+end
+
+function enemies_module.get_hearts_snapshot()
+    return hearts
+end
+
+function enemies_module.load_hearts_snapshot(snapshot)
+    hearts = snapshot
+end
+
+function enemies_module.get_coins_snapshot()
+    return coins
+end
+
+function enemies_module.load_coins_snapshot(snapshot)
+    coins = snapshot
+end
+
+-- ============================================================
+-- API PARA MODS
+-- Expõe as tabelas internas para que mods possam:
+--   - editar valores de inimigos existentes (enemies_module.presets["perseguidor"].hp_base = 10)
+--   - adicionar inimigos novos (enemies_module.presets["meu_inimigo"] = {...})
+--   - dar IA customizada a um inimigo novo ou existente
+--     (enemies_module.ai["meu_inimigo"] = function(enemy, player, dt) ... end)
+-- Depois de registrar um preset novo, o mod deve chamar enemies_module.reload_assets()
+-- se o preset usar um sprite ainda não carregado, e adicionar o tipo em Waves.enemy_types
+-- (ou Waves.boss_types) via ModAPI para ele começar a aparecer nas ondas.
+-- ============================================================
+enemies_module.presets = EnemyPresets
+enemies_module.ai = update_functions
+enemies_module.is_boss_type = is_boss
+
+function enemies_module.reload_assets()
+    enemies_module.load_assets()
 end
 
 return enemies_module

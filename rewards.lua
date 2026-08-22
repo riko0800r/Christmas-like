@@ -8,10 +8,17 @@ local addpart = part.spawn
 
 local Rewards = {}
 Rewards.slots = {}
-Rewards.reroll_cost = 10
+Rewards.reroll_cost = 5
 Rewards.free_claimed = false
 Rewards.selected_index = 1
 Rewards.current_rewards = {}
+
+-- ESTADO DA TROCA DE ARMA: quando o jogador tenta comprar uma arma nova
+-- estando com os slots cheios (ver Player:wouldExceedWeaponSlots), a
+-- compra não é aplicada na hora — guardamos o item pendente aqui e a UI
+-- (main.lua) mostra um prompt "qual arma sai?" antes de confirmar.
+-- pending_swap = { slot_index = n, item = <item table> } ou nil.
+Rewards.pending_swap = nil
 
 _G.SFX_Reroll=love.audio.newSource("assets/reroll.wav", "static")
 _G.SFX_Buy=love.audio.newSource("assets/buy.wav","static")
@@ -213,7 +220,7 @@ local upgrades = {
         get_price = getItemPrice,
     },
     {
-        id = "Imobilizador", 
+        id = "Imobilizador",
         get_name = function() return Lang.text("item_frz") end,
         effect = function(p) 
             p.gelo = true
@@ -237,7 +244,7 @@ local upgrades = {
         get_price = getItemPrice,
     },
     {
-        id = "Vitalidade", 
+        id = "Vitalidade",
         get_name = function() return Lang.text("item_vit") end,
         effect = function(p) 
             p.regen = true
@@ -425,7 +432,7 @@ local upgrades = {
         end,
         base_price = 5,
         type = "upgrade",
-        weight = 6,
+        weight = 5,
         icon = presente,
         get_price = getItemPrice,
     }
@@ -461,7 +468,7 @@ local shop_items = {
         effect = function(p) p.relics["Sorte Dourada"] = true end,
         base_price = 75,
         type = "relic",
-        weight = 8,
+        weight = 10,
         icon = love.graphics.newImage("assets/Sorte.png"),
         get_price = function(item, player) return item.base_price end,
     },
@@ -490,9 +497,35 @@ local function pickRandomUnique(pool, count)
     return results
 end
 
+-- Monta o pool de upgrades disponível pra sorteio nesta rodada,
+-- respeitando o limite de slots de arma: se o player já está com os
+-- slots cheios, armas que ele AINDA NÃO TEM saem do pool normal (elas
+-- continuam existindo, só não aparecem sorteadas aqui) — assim a loja
+-- não fica oferecendo 3 slots de "arma nova que exige troca" numa run
+-- que já tem build fechada. Upgrades de armas já equipadas e itens de
+-- stat puro (Vida, Força, etc.) nunca são afetados por esse filtro.
+local function getAvailablePool(p)
+    if not p or not p.wouldExceedWeaponSlots then return upgrades end
+
+    local pool = {}
+    for _, item in ipairs(upgrades) do
+        if not p:wouldExceedWeaponSlots(item.id) then
+            table.insert(pool, item)
+        end
+    end
+    -- Se por algum motivo o pool ficar vazio (build com muitos itens de
+    -- peso 0 já comprados etc.), cai de volta pro pool completo em vez
+    -- de travar a loja sem oferta nenhuma.
+    if #pool == 0 then return upgrades end
+    return pool
+end
+Rewards.getAvailablePool = getAvailablePool
+
 function Rewards.generate()
     Rewards.slots = {}
-    local items_a = pickRandomUnique(upgrades, 3)
+    Rewards.pending_swap = nil
+    local pool = getAvailablePool(_G.player)
+    local items_a = pickRandomUnique(pool, 3)
     
     -- FILTRO DE RELÍQUIAS:
     local available_relics = {}
@@ -522,23 +555,72 @@ function Rewards.reroll()
     end
 end
 
+-- Aplica de fato o efeito de compra de um item (débito de dinheiro,
+-- effect(), nível, achievement, som). Separado de Rewards.buy para ser
+-- reaproveitado tanto pela compra direta quanto pela confirmação de
+-- troca de arma (Rewards.confirmSwap).
+local function finalizePurchase(slot, price)
+    player.money = player.money - price
+    slot.item.effect(player)
+    slot.bought = true
+    SFX_Buy:play()
+
+    if slot.item.type == "upgrade" then
+        player.item_levels[slot.item.id] = (player.item_levels[slot.item.id] or 0) + 1
+    end
+
+    if _G.Achievements then _G.Achievements.on_item_bought(player) end
+end
+
 function Rewards.buy(index)
     local slot = Rewards.slots[index]
     if not slot or slot.bought then return end
 
     local price = slot.item.get_price(slot.item, player)
-    
-    if player.money >= price then
-        player.money = player.money - price
-        slot.item.effect(player)
-        slot.bought = true
-        SFX_Buy:play()
-        
-        -- Aumenta o nível do item
-        if slot.item.type == "upgrade" then
-            player.item_levels[slot.item.id] = (player.item_levels[slot.item.id] or 0) + 1
-        end
+    if player.money < price then return end
+
+    -- Se essa é uma arma nova e os slots já estão cheios, não aplica
+    -- direto: abre o prompt de troca (o dinheiro só é descontado ao
+    -- confirmar qual arma sai, em Rewards.confirmSwap).
+    if player.wouldExceedWeaponSlots and player:wouldExceedWeaponSlots(slot.item.id) then
+        Rewards.pending_swap = { slot_index = index, item = slot.item }
+        _G.setupButtonsForState("rewards_swap")
+        return
     end
+
+    finalizePurchase(slot, price)
+    _G.setupButtonsForState("rewards")
+end
+
+-- Confirma a troca: desliga a arma escolhida (`old_item_id`) e aplica a
+-- compra da arma pendente no lugar dela. Chamado pelos botões da tela
+-- de troca (main.lua / setupButtonsForState("rewards_swap")).
+function Rewards.confirmSwap(old_item_id)
+    local pending = Rewards.pending_swap
+    if not pending then return end
+
+    local slot = Rewards.slots[pending.slot_index]
+    if not slot or slot.bought then
+        Rewards.pending_swap = nil
+        return
+    end
+
+    local price = slot.item.get_price(slot.item, player)
+    if player.money < price then
+        Rewards.pending_swap = nil
+        _G.setupButtonsForState("rewards")
+        return
+    end
+
+    player:unequipWeapon(old_item_id)
+    finalizePurchase(slot, price)
+    Rewards.pending_swap = nil
+    _G.setupButtonsForState("rewards")
+end
+
+-- Cancela a troca (jogador desistiu de comprar a arma nova).
+function Rewards.cancelSwap()
+    Rewards.pending_swap = nil
     _G.setupButtonsForState("rewards")
 end
 
@@ -582,6 +664,19 @@ function Rewards.get_icon_by_name(name)
     return nil
 end
 
+-- Acha a entrada completa do item (upgrade ou relíquia) pelo id — usado
+-- pela UI de troca pra mostrar o nome traduzido (get_name()) em vez do
+-- id interno cru.
+function Rewards.get_item_by_id(id)
+    for _, item in ipairs(upgrades) do
+        if item.id == id then return item end
+    end
+    for _, item in ipairs(shop_items) do
+        if item.id == id then return item end
+    end
+    return nil
+end
+
 function Rewards.draw()
     if math.random() < 0.1 then 
         for i = 1, math.random(1, 8) do
@@ -620,5 +715,12 @@ function Rewards.draw()
     end
     Buttons:drawAll()
 end
+
+-- API PARA MODS: expõe os pools de itens da loja.
+-- Rewards.upgrades: itens comprados várias vezes (armas, vida, etc.), precisam de "weight".
+-- Rewards.shop_items: relíquias/itens únicos (comprados 1x por run), também precisam de "weight".
+-- Cada item precisa de: id, get_name, get_desc, effect(player), type, weight, icon, get_price(item, player).
+Rewards.upgrades = upgrades
+Rewards.shop_items = shop_items
 
 return Rewards

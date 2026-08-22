@@ -1,10 +1,29 @@
 -- =============================================================
---                    Sistema de GUI Universal (V3.0)
+--                    Sistema de GUI Universal (V3.1)
 --           (Event-Driven Mouse & Smooth Slider Support)
+--                  + Juice: hover/click feedback
 -- =============================================================
 
 local GUI = {}
 GUI.__index = GUI
+
+-- -------------------------------------------------------------
+-- JUICE: pequeno helper de easing/lerp reaproveitado por todos os
+-- widgets. Ficou aqui em vez de em utils.lua pra não criar mais uma
+-- dependência cruzada — é puramente cosmético e local a este arquivo.
+-- -------------------------------------------------------------
+local function lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+-- easeOutBack: overshoot leve (ultrapassa o alvo e volta), ótimo pra
+-- "pop" de escala em botões sem precisar de tween library externa.
+local function easeOutBack(t)
+    local c1 = 1.70158
+    local c3 = c1 + 1
+    t = math.max(0, math.min(1, t))
+    return 1 + c3 * (t - 1) ^ 3 + c1 * (t - 1) ^ 2
+end
 
 -- =============================================================
 -- CLASSE BASE (WIDGET)
@@ -16,15 +35,61 @@ local Widget = {
     visible = true,
     enabled = true,
     type = "widget",
-    hovered = false
+    hovered = false,
+
+    -- --- Estado de animação (juice) ---
+    -- anim_scale: escala atual desenhada (1 = tamanho normal)
+    -- _hover_t: 0..1, progride em direção a 1 enquanto hovered/selected,
+    --           e volta a 0 quando não está — dá o "cresce ao entrar,
+    --           encolhe ao sair" suave em vez de um snap binário.
+    -- _click_t: pulso de 1..0 disparado no click/execute, some rápido.
+    anim_scale = 1,
+    _hover_t = 0,
+    _click_t = 0,
+    _was_hovered = false,
 }
 
 function Widget:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
-    o.children = {} 
+    o.children = {}
+    o.anim_scale = 1
+    o._hover_t = 0
+    o._click_t = 0
+    o._was_hovered = false
     return o
+end
+
+-- Atualiza a animação de juice deste widget (chamado em GUI:update).
+-- Não depende do tipo do widget — funciona igual pra botão, checkbox etc.
+function Widget:updateJuice(dt)
+    local isActive = (self.selected or self.hovered) and self.enabled and self.visible
+
+    local hoverSpeed = 8 -- quão rápido entra/sai do estado de hover
+    if isActive then
+        self._hover_t = math.min(1, self._hover_t + dt * hoverSpeed)
+    else
+        self._hover_t = math.max(0, self._hover_t - dt * hoverSpeed)
+    end
+
+    if self._click_t > 0 then
+        self._click_t = math.max(0, self._click_t - dt * 5.5) -- pulso dura ~0.18s
+    end
+
+    -- Escala final: leve "respiro" (1 -> 1.06) no hover via easeOutBack,
+    -- somado a um pop extra (até 1.14) no instante do click que decai
+    -- rápido. Os dois nunca competem de forma feia porque o pop do
+    -- click já começa do valor de hover atual.
+    local hoverScale = 1 + easeOutBack(self._hover_t) * 0.06
+    local clickPop = self._click_t * 0.08
+    self.anim_scale = hoverScale + clickPop
+end
+
+-- Dispara o pulso de click. Widgets chamam isso nos seus próprios
+-- handlers de onClick/toggle/setValue.
+function Widget:pulse()
+    self._click_t = 1
 end
 
 function Widget:draw(offsetX, offsetY) end
@@ -205,7 +270,17 @@ function GUI:newCheckbox(x, y, boxSize, text, isChecked, onToggle, parent)
         
         local borderColor = self.selected and {1, 1, 0, 1} or {0.6, 0.6, 0.6, 1}
         local fillColor = self.checked and {0.2, 0.8, 1, 1} or {0, 0, 0, 0.5}
-        
+
+        -- JUICE: mesmo respiro/pop de escala dos botões, só que só a
+        -- caixinha em si escala (o texto ao lado fica parado, senão
+        -- "empurra" o layout e fica estranho).
+        local scale = self.anim_scale or 1
+        local cx, cy = dx + self.boxSize / 2, dy + self.boxSize / 2
+        love.graphics.push()
+        love.graphics.translate(cx, cy)
+        love.graphics.scale(scale, scale)
+        love.graphics.translate(-cx, -cy)
+
         -- Desenha a caixa
         love.graphics.setColor(fillColor)
         love.graphics.rectangle("fill", dx, dy, self.boxSize, self.boxSize, 3)
@@ -220,8 +295,10 @@ function GUI:newCheckbox(x, y, boxSize, text, isChecked, onToggle, parent)
             local padding = 4
             love.graphics.rectangle("fill", dx + padding, dy + padding, self.boxSize - (padding*2), self.boxSize - (padding*2), 2)
         end
+
+        love.graphics.pop()
         
-        -- Desenha o texto ao lado
+        -- Desenha o texto ao lado (fora do scale, propositalmente)
         if self.text ~= "" then
             love.graphics.setColor(self.selected and {1,1,1,1} or {0.8,0.8,0.8,1})
             local font = love.graphics.getFont()
@@ -232,6 +309,7 @@ function GUI:newCheckbox(x, y, boxSize, text, isChecked, onToggle, parent)
     
     cb.toggle = function(self)
         self.checked = not self.checked
+        self:pulse()
         if self.onToggle then self.onToggle(self.checked) end
     end
 
@@ -270,7 +348,26 @@ function GUI:newButton(x, y, w, h, text, onClick, onSelect, image, parent)
         local bg = isHighlit and {0.2, 0.6, 1, 0.8} or {0, 0, 0, 0.4}
         local txtColor = isHighlit and {1,1,0} or {1,1,1}
         local borderColor = isHighlit and {0,1,1} or {0.4,0.4,0.4}
-        
+
+        -- JUICE: escala em torno do centro do botão (respiro no hover +
+        -- pop no click). push/pop isolam a transformação só do desenho;
+        -- a hitbox real (self.x/y/w/h) não muda, então clique continua
+        -- preciso mesmo "esticado".
+        local scale = self.anim_scale or 1
+        local cx, cy = dx + self.w / 2, dy + self.h / 2
+        love.graphics.push()
+        love.graphics.translate(cx, cy)
+        love.graphics.scale(scale, scale)
+        love.graphics.translate(-cx, -cy)
+
+        -- Glow sutil atrás do botão quando destacado (soma com o pulso
+        -- de click pra dar um "flash" rápido de feedback).
+        if isHighlit then
+            local glow = 0.15 + self._click_t * 0.35
+            love.graphics.setColor(borderColor[1], borderColor[2], borderColor[3], glow)
+            love.graphics.rectangle("fill", dx - 3, dy - 3, self.w + 6, self.h + 6, 5)
+        end
+
         love.graphics.setColor(bg)
         love.graphics.rectangle("fill", dx, dy, self.w, self.h, 3)
         
@@ -301,6 +398,8 @@ function GUI:newButton(x, y, w, h, text, onClick, onSelect, image, parent)
             local textY = dy + (self.h - textHeight) / 2
             love.graphics.print(self.text, textX, textY)
         end
+
+        love.graphics.pop()
     end
     
     if parent then parent:addChild(b) else self.root:addChild(b) end
@@ -376,11 +475,12 @@ function GUI:executeSelected()
     
     if b and b.enabled then
         if b.type == "button" and b.onClick then
+            b:pulse()
             b.onClick(b)
             self.inputCooldown = self.debounceTime * 5
             return true
         elseif b.type == "checkbox" then
-            b:toggle()
+            b:toggle() -- já dá pulse() internamente
             self.inputCooldown = self.debounceTime * 2
             return true
         end
@@ -437,6 +537,7 @@ function GUI:mousepressed(x, y, button)
             b.selected = true
             
             if b.type == "button" then
+                b:pulse()
                 if b.onClick then b.onClick(b) end
             elseif b.type == "checkbox" then
                 b:toggle()
@@ -494,6 +595,14 @@ end
 function GUI:update(dt)
     if self.gamepadTimer > 0 then self.gamepadTimer = self.gamepadTimer - dt end
     if self.inputCooldown > 0 then self.inputCooldown = self.inputCooldown - dt end
+
+    -- JUICE: atualiza a animação de hover/click de cada widget focável.
+    -- Feito aqui (e não dentro de cada draw) pra não depender de dt
+    -- estar disponível no draw, e pra continuar rodando mesmo se um
+    -- widget momentaneamente não for desenhado.
+    for _, w in ipairs(self.focusableList) do
+        w:updateJuice(dt)
+    end
     
     -- Lógica de repetição de tecla (Holding key)
     local current = self.focusableList[self.selectedIndex]

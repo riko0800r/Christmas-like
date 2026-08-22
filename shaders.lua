@@ -99,6 +99,54 @@ Shaders.pixelate = love.graphics.newShader[[
     }
 ]]
 
+-- Shader CRT
+Shaders.crt = love.graphics.newShader[[
+    uniform float time;
+    uniform float scanlineIntensity;
+    uniform float curvature;
+    uniform float chromatic;
+
+    // Efeito de curvatura (simples)
+    vec2 curve(vec2 uv, float amount) {
+        uv = uv * 2.0 - 1.0;
+        uv = uv * (1.0 - uv.y*uv.y*amount*0.1);
+        uv = uv * (1.0 - uv.x*uv.x*amount*0.1);
+        uv = uv * 0.5 + 0.5;
+        return uv;
+    }
+
+    vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
+        vec2 uv = texture_coords;
+        
+        // Curvatura
+        if (curvature > 0.0) {
+            uv = curve(uv, curvature);
+        }
+        
+        // Se saiu da tela (preto)
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+            return vec4(0.0);
+        }
+        
+        vec4 tex = Texel(texture, uv);
+        
+        // Scanlines
+        float scanline = sin(uv.y * 800.0 + time * 10.0) * 0.5 + 0.5;
+        tex.rgb *= mix(1.0, scanline, scanlineIntensity);
+        
+        // Aberração cromática simples
+        if (chromatic > 0.0) {
+            float offset = 0.002 * chromatic;
+            float r = Texel(texture, uv + vec2(offset, 0.0)).r;
+            float g = tex.g;
+            float b = Texel(texture, uv - vec2(offset, 0.0)).b;
+            tex = vec4(r, g, b, tex.a);
+        }
+        
+        return tex * color;
+    }
+]]
+
 -- =============================================================
 --                    FUNÇÕES DE CONTROLE
 -- =============================================================

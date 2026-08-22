@@ -161,6 +161,15 @@ function Player.new()
     self.explosion_radius = 48
     self.attack_speed_mult = 1.0
 
+    -- LIMITE DE ARMAS (estilo "vampire survivors"): o jogador só pode
+    -- ter WEAPON_SLOTS armas ativas ao mesmo tempo. Isso força escolhas
+    -- de build em vez de acumular tudo numa run longa. Upgrades de
+    -- armas JÁ equipadas continuam liberados sem limite (é o que dá
+    -- profundidade à build escolhida); o limite só entra em jogo
+    -- quando o jogador tentaria adicionar uma arma NOVA estando cheio
+    -- — ver Player:getWeaponCount / Rewards.lua.
+    self.weapon_slots = 4
+
         -- ESCUDO GIRATÓRIO
     self.escudo = false
     self.escudo_time = 0
@@ -334,7 +343,86 @@ function Player.new()
     self.target_sx = 1
     self.target_sy = 1
 
+    self.coins_collected = 0
+    self.took_damage = false -- vira true no 1o hit sofrido (conquista "sem dano")
+
+    -- API PARA MODS: se um mod definir Player.on_new (function(self) ... end),
+    -- ela roda aqui, depois de todos os defaults originais serem aplicados.
+    -- Um mod pode então sobrescrever qualquer campo, ex:
+    --   function Player.on_new(p) p.speed = p.speed * 1.5; p.demage = 2 end
+    if Player.on_new then
+        Player.on_new(self)
+    end
+
     return self
+end
+
+-- =============================================================
+--   SISTEMA DE SLOTS DE ARMA
+-- =============================================================
+-- WEAPON_FIELDS: mapa "id do item em Rewards.upgrades" -> campo boolean
+-- no player que liga aquela arma. Fica aqui (e não em rewards.lua) para
+-- que qualquer outro sistema (achievements, UI, mods) também consiga
+-- perguntar "quantas armas o player tem" sem depender de rewards.lua.
+-- Um mod que adicionar uma arma nova via ModAPI pode registrar mais
+-- entradas aqui: Player.WEAPON_FIELDS["Meu Item"] = "minha_flag".
+Player.WEAPON_FIELDS = {
+    ["Bola de neve"]          = "tiro",
+    ["Bloco de gelo"]         = "roda",
+    ["Pedras do ceu"]         = "pedra",
+    ["Veneno mortal"]         = "veneno",
+    ["Fogo perigoso"]         = "fogo",
+    ["Imobilizador"]          = "gelo",
+    ["Anel de Lava"]          = "anel_ativo",
+    ["Pedras Preciosas"]      = "sombrio_ativo",
+    ["Guirlanda de Espinhos"] = "guirlanda",
+    ["Bumerangue Natalino"]   = "boom",
+    ["Estrelas Natalinas"]    = "estrelas_natalinas",
+}
+
+-- Retorna true se o player já tem a arma correspondente a este id de
+-- item ativa (ou seja, comprar de novo seria só upgrade, não uma arma
+-- nova ocupando slot).
+function Player:hasWeaponFor(item_id)
+    local field = Player.WEAPON_FIELDS[item_id]
+    if not field then return true end -- não é arma (stat puro): nunca ocupa slot
+    return self[field] == true
+end
+
+-- Conta quantas armas distintas estão ativas agora.
+function Player:getWeaponCount()
+    local count = 0
+    for _, field in pairs(Player.WEAPON_FIELDS) do
+        if self[field] then count = count + 1 end
+    end
+    return count
+end
+
+-- true se comprar `item_id` agora estouraria o limite de slots (ou
+-- seja: é uma arma que o player ainda não tem, E os slots já estão
+-- cheios). Itens que não são arma (stats) e upgrades de arma já
+-- equipada nunca estouram.
+function Player:wouldExceedWeaponSlots(item_id)
+    if self:hasWeaponFor(item_id) then return false end
+    return self:getWeaponCount() >= (self.weapon_slots or 4)
+end
+
+-- Lista {id, field} das armas atualmente equipadas — usado pela UI de
+-- troca (escolher qual arma sai para a nova entrar).
+function Player:getEquippedWeaponIds()
+    local equipped = {}
+    for id, field in pairs(Player.WEAPON_FIELDS) do
+        if self[field] then table.insert(equipped, id) end
+    end
+    return equipped
+end
+
+-- Desliga a arma `item_id` (usado ao trocar uma arma por outra).
+-- Só desliga a FLAG; não reseta níveis/dano acumulado, então se o
+-- jogador reequipar a mesma arma depois ela volta no nível salvo.
+function Player:unequipWeapon(item_id)
+    local field = Player.WEAPON_FIELDS[item_id]
+    if field then self[field] = false end
 end
 
 function Player:useActiveItem()
@@ -1565,6 +1653,12 @@ function Player:checkPlayerCollision(enemies)
 end
 
 function Player:takeHit(dmg)
+    if self.invencible then
+        -- Usado pelo player fantasma da cutscene de intro: recebe o "hit" pra
+        -- lógica de colisão dos inimigos continuar funcionando normalmente,
+        -- mas não perde vida, não toca som e não mexe na câmera do jogo real.
+        return
+    end
     if self.block_chance and math.random() < self.block_chance then
         -- Efeito visual de bloqueio
         local part = require("part")
@@ -1580,10 +1674,12 @@ function Player:takeHit(dmg)
     end
     self.sx = 1.85
     self.sy = 0.45
+    Shaders:triggerFlash(self)
     SFX_dano:play()
     local damage = math.floor(dmg or 1)
     self.lifes = self.lifes - damage
     self.invul = 1
+    self.took_damage = true -- usado pela conquista "vença sem sofrer dano"
     Camera:shake(0.45, 2)
 end
 
@@ -1613,6 +1709,11 @@ end
 
 function Player:draw()
     Utils.setColor(7)
+
+    if not self.sprite or not self.sprite[self.tipo_jogador] then
+        local Characters = require("characters")
+        Characters.load(self)
+    end
     
     -- Desenha bullets normais
     Shaders:applyProjectileShader(neve, self)
